@@ -266,25 +266,12 @@ function renderMap() {
 
   if (!state.map) {
     state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
-    const gaodeLayer = window.L.tileLayer('https://webrd{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}', {
-      subdomains: ['01', '02', '03', '04'],
-      maxZoom: 18,
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      subdomains: ['a', 'b', 'c'],
+      maxZoom: 19,
       minZoom: 3,
-      attribution: '© 高德地图'
-    })
-
-    let fallbackUsed = false
-    gaodeLayer.on('tileerror', () => {
-      if (fallbackUsed) return
-      fallbackUsed = true
-      gaodeLayer.remove()
-      window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(state.map)
-    })
-
-    gaodeLayer.addTo(state.map)
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(state.map)
   }
 
   clearMarkers()
