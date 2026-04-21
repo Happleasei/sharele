@@ -41,6 +41,7 @@ const state = {
   lng: '',
   me: null,
   interactions: [],
+  interactionToast: null,
   autoLocated: false,
   activeTab: 'nearby',
   sheetOpen: true,
@@ -169,6 +170,7 @@ function mountShell() {
   app.innerHTML = `
     <div class="map-page">
       <div id="topBar" class="top-bar"></div>
+      <div id="interactionToastHost"></div>
       <div id="map" class="full-map"></div>
       <div id="sheet" class="bottom-sheet"></div>
       <div id="tabbar" class="tabbar"></div>
@@ -499,11 +501,6 @@ function renderSheet() {
       <div id="roleBoxes" class="role-grid"></div>
       <div class="role-actions"><select id="primaryRole" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="primary-btn" ${canEditRoles ? '' : 'disabled'}>保存并显示</button></div>
     `
-  } else if (state.activeTab === 'interactions') {
-    content = `
-      <div class="sheet-head"><div><div class="sheet-title">互动记录</div><div class="sheet-sub">你发起过的联系和收到的联系。</div></div></div>
-      <div class="nearby-list">${(state.interactions || []).map(it => `<div class="nearby-row"><div><div class="nearby-name">${it.fromNickname || ('用户'+it.fromUserId)} → ${it.toNickname || ('用户'+it.toUserId)}</div><div class="small">${it.message || '（无附言）'} · ${it.status}</div></div></div>`).join('') || '<div class="small">暂无互动记录</div>'}</div>
-    `
   } else {
     content = `
       <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料都收进这里。</div></div></div>
@@ -524,6 +521,7 @@ function renderSheet() {
           <div class="quick-actions">
             <button class="ghost-btn" id="openVerify">实名认证</button>
             <button class="ghost-btn" id="openProfile">资料设置</button>
+            <button class="ghost-btn" id="openInteractionsInMy">互动记录</button>
             <button class="ghost-btn" id="geoLocateFromMy">重新定位</button>
             <button class="ghost-btn" id="logout">退出登录</button>
           </div>
@@ -558,13 +556,22 @@ function renderSheet() {
   }
 }
 
+function renderInteractionToast() {
+  const host = document.getElementById('interactionToastHost')
+  if (!host) return
+  if (!state.interactionToast) {
+    host.innerHTML = ''
+    return
+  }
+  host.innerHTML = `<div class="interaction-toast"><div class="interaction-toast-title">互动已发出</div><div class="small">${state.interactionToast}</div></div>`
+}
+
 function renderTabbar() {
   const el = document.getElementById('tabbar')
   if (!el) return
   const tabs = [
     { key: 'nearby', label: '附近', icon: '🧭' },
     { key: 'roles', label: '角色', icon: '🏷️' },
-    { key: 'interactions', label: '互动', icon: '💬' },
     { key: 'my', label: '我的', icon: '👤' }
   ]
   el.innerHTML = tabs.map(tab => `<button class="tab-btn ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}"><span>${tab.icon}</span><em>${tab.label}</em></button>`).join('')
@@ -573,6 +580,7 @@ function renderTabbar() {
 function renderUI() {
   applyNearby1kmFilter()
   renderTopBar()
+  renderInteractionToast()
   renderSheet()
   renderTabbar()
   renderMapOverlays()
@@ -592,9 +600,6 @@ function bindActions() {
       const tab = btn.getAttribute('data-tab')
       state.activeTab = tab
       state.sheetOpen = true
-      if (tab === 'interactions' && state.token) {
-        state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
-      }
       renderUI()
     })
   })
@@ -636,6 +641,12 @@ function bindActions() {
     localStorage.removeItem('sharele_token')
     localStorage.removeItem(VERIFY_OVERRIDE_KEY)
     renderUI()
+  })
+
+  $('openInteractionsInMy')?.addEventListener('click', async () => {
+    const host = document.getElementById('subPanel')
+    state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
+    if (host) host.innerHTML = `<div class="sub-card"><div class="sheet-title">互动记录</div><div class="nearby-list">${(state.interactions || []).map(it => `<div class="nearby-row"><div><div class="nearby-name">${it.fromNickname || ('用户'+it.fromUserId)} → ${it.toNickname || ('用户'+it.toUserId)}</div><div class="small">${it.message || '（无附言）'} · ${it.status}</div></div></div>`).join('') || '<div class="small">暂无互动记录</div>'}</div></div>`
   })
 
   $('openVerify')?.addEventListener('click', () => {
@@ -739,7 +750,12 @@ function bindActions() {
       const message = window.prompt(`给 ${target} 留一句话（可选）`, '你好，想认识一下') || ''
       try {
         await request('/interactions', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ toUserId, message }) })
-        alert(`已向 ${target} 发起互动`)
+        state.interactionToast = `已向 ${target} 发起互动`
+        renderInteractionToast()
+        setTimeout(() => {
+          state.interactionToast = null
+          renderInteractionToast()
+        }, 4000)
       } catch (err) {
         alert(err.message || '互动发送失败')
       }
