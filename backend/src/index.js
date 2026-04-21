@@ -59,11 +59,26 @@ app.get('/roles', async (_req, res) => {
 
 app.post('/user/roles', authRequired, async (req, res) => {
   const { roleIds = [], primaryRoleId = null } = req.body || {}
-  await pool.query('DELETE FROM user_roles WHERE user_id=?', [req.user.uid])
-  for (const roleId of roleIds) {
-    await pool.query('INSERT INTO user_roles (user_id, role_id, is_primary) VALUES (?, ?, ?)', [req.user.uid, roleId, Number(roleId) === Number(primaryRoleId) ? 1 : 0])
+  const normalizedRoleIds = Array.from(new Set((roleIds || []).map(x => Number(x)).filter(Number.isFinite)))
+
+  if (!normalizedRoleIds.length) {
+    return res.status(400).json({ message: '请至少选择一个角色' })
   }
-  res.json({ ok: true })
+
+  const [exists] = await pool.query(
+    `SELECT id FROM roles WHERE id IN (${normalizedRoleIds.map(() => '?').join(',')})`,
+    normalizedRoleIds
+  )
+  if (exists.length !== normalizedRoleIds.length) {
+    return res.status(400).json({ message: '包含无效角色' })
+  }
+
+  const primary = Number(primaryRoleId || normalizedRoleIds[0])
+  await pool.query('DELETE FROM user_roles WHERE user_id=?', [req.user.uid])
+  for (const roleId of normalizedRoleIds) {
+    await pool.query('INSERT INTO user_roles (user_id, role_id, is_primary) VALUES (?, ?, ?)', [req.user.uid, roleId, Number(roleId) === primary ? 1 : 0])
+  }
+  res.json({ ok: true, primaryRoleId: primary })
 })
 
 app.post('/user/location', authRequired, async (req, res) => {
@@ -74,6 +89,32 @@ app.post('/user/location', authRequired, async (req, res) => {
     [req.user.uid, lat, lng, isOnline ? 1 : 0]
   )
   res.json({ ok: true })
+})
+
+app.get('/user/me', authRequired, async (req, res) => {
+  const [users] = await pool.query(
+    `SELECT id, phone, nickname, real_name realName, verify_status verifyStatus
+     FROM users WHERE id=? LIMIT 1`,
+    [req.user.uid]
+  )
+  const user = users[0]
+  if (!user) return res.status(404).json({ message: '用户不存在' })
+
+  const [roles] = await pool.query(
+    `SELECT r.id, r.code, r.name, r.category, ur.is_primary isPrimary
+     FROM user_roles ur
+     JOIN roles r ON r.id = ur.role_id
+     WHERE ur.user_id=?
+     ORDER BY ur.is_primary DESC, r.id ASC`,
+    [req.user.uid]
+  )
+
+  const [locations] = await pool.query(
+    `SELECT lat, lng, is_online isOnline, updated_at updatedAt FROM user_locations WHERE user_id=? LIMIT 1`,
+    [req.user.uid]
+  )
+
+  res.json({ user, roles, location: locations[0] || null })
 })
 
 app.get('/map/nearby', authRequired, async (req, res) => {

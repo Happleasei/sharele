@@ -11,7 +11,8 @@ const state = {
   filterRoleCode: '',
   gpsStatus: '未定位',
   lat: '',
-  lng: ''
+  lng: '',
+  me: null
 }
 
 const app = document.querySelector('#app')
@@ -47,23 +48,30 @@ function render() {
   app.innerHTML = `
     <div class="page">
       <div class="brand">sharele</div>
-      <div class="sub">移动职业/兴趣角色地图 · Web V0.2</div>
+      <div class="sub">移动职业/兴趣角色地图 · Web V0.3</div>
+
+      <div class="card">
+        <h3 class="h">0) 我的状态</h3>
+        <div class="small">${state.token ? '已登录' : '未登录'}${state.me ? ` · ${state.me.user.nickname || state.me.user.phone}` : ''}</div>
+        <div class="small">实名状态：${state.me ? state.me.user.verifyStatus : '未知'}</div>
+      </div>
 
       <div class="card">
         <h3 class="h">1) 登录 / 注册</h3>
         <div class="row">
-          <input id="phone" class="input" placeholder="手机号" />
+          <input id="phone" class="input" placeholder="手机号" value="${state.me ? (state.me.user.phone || '') : ''}" />
           <input id="password" class="input" placeholder="密码" type="password" />
-          <input id="nickname" class="input" placeholder="昵称（注册可填）" />
+          <input id="nickname" class="input" placeholder="昵称（注册可填）" value="${state.me ? (state.me.user.nickname || '') : ''}" />
           <button id="register" class="btn sec">注册</button>
           <button id="login" class="btn">登录</button>
+          <button id="logout" class="btn sec">退出登录</button>
         </div>
       </div>
 
       <div class="card">
         <h3 class="h">2) 实名认证</h3>
         <div class="row">
-          <input id="realName" class="input" placeholder="真实姓名" />
+          <input id="realName" class="input" placeholder="真实姓名" value="${state.me ? (state.me.user.realName || '') : ''}" />
           <input id="idCardNo" class="input" placeholder="身份证号" />
           <button id="verify" class="btn">提交实名</button>
         </div>
@@ -73,7 +81,7 @@ function render() {
         <h3 class="h">3) 选择角色</h3>
         <div class="row" id="roleBoxes"></div>
         <div class="row" style="margin-top:10px">
-          <select id="primaryRole" class="select"><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}</select>
+          <select id="primaryRole" class="select"><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select>
           <button id="saveRoles" class="btn">保存角色</button>
         </div>
       </div>
@@ -118,7 +126,7 @@ function renderRoleChecks() {
   if (!box) return
   box.innerHTML = state.roles.map(r => `
     <label class="item" style="display:flex;align-items:center;gap:8px;min-width:220px">
-      <input type="checkbox" value="${r.id}" ${state.selectedRoles.includes(r.id) ? 'checked' : ''} />
+      <input type="checkbox" value="${r.id}" ${state.selectedRoles.includes(Number(r.id)) ? 'checked' : ''} />
       <span>${r.name}</span>
       <span class="small">${r.category}</span>
     </label>
@@ -155,8 +163,8 @@ function renderMap() {
   }
 
   clearMarkers()
-
   if (!state.nearby.length) return
+
   const points = []
   state.nearby.forEach(item => {
     const lat = Number(item.lat)
@@ -196,22 +204,43 @@ function bindActions() {
       const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ phone: $('phone').value.trim(), password: $('password').value }) })
       state.token = data.token
       localStorage.setItem('sharele_token', data.token)
+      await loadMe()
       alert('登录成功')
+      render()
     } catch (e) { alert(e.message) }
+  }
+
+  $('logout').onclick = () => {
+    state.token = ''
+    state.me = null
+    state.selectedRoles = []
+    state.primaryRoleId = null
+    state.nearby = []
+    localStorage.removeItem('sharele_token')
+    alert('已退出登录')
+    render()
   }
 
   $('verify').onclick = async () => {
     try {
       await request('/verify/realname', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ realName: $('realName').value.trim(), idCardNo: $('idCardNo').value.trim() }) })
+      await loadMe()
       alert('实名提交成功')
+      render()
     } catch (e) { alert(e.message) }
   }
 
   $('saveRoles').onclick = async () => {
     try {
       const primaryRoleId = Number($('primaryRole').value || 0) || null
-      await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
+      if (!state.selectedRoles.length) {
+        alert('请先选择至少一个角色')
+        return
+      }
+      const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
+      state.primaryRoleId = ret.primaryRoleId
       alert('角色保存成功')
+      render()
     } catch (e) { alert(e.message) }
   }
 
@@ -259,8 +288,27 @@ function bindActions() {
   }
 }
 
+async function loadMe() {
+  if (!state.token) {
+    state.me = null
+    return
+  }
+  const me = await request('/user/me', { headers: authHeaders() }).catch(() => null)
+  state.me = me
+  if (!me) return
+
+  state.selectedRoles = (me.roles || []).map(r => Number(r.id))
+  const primary = (me.roles || []).find(r => Number(r.isPrimary) === 1)
+  state.primaryRoleId = primary ? Number(primary.id) : (state.selectedRoles[0] || null)
+  if (me.location) {
+    state.lat = String(me.location.lat ?? '')
+    state.lng = String(me.location.lng ?? '')
+  }
+}
+
 async function bootstrap() {
   state.roles = await request('/roles').catch(() => [])
+  await loadMe()
   render()
 }
 
