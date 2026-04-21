@@ -11,7 +11,7 @@
 html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans SC', sans-serif; background: linear-gradient(180deg, #eef4fb, #dfe7f3); color: var(--text); }
 
 .map-page { position: relative; width: 100%; height: 100%; overflow: hidden; background: linear-gradient(180deg, #eef4fb, #dfe7f3); }
-.full-map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; filter: saturate(0.96) contrast(1.02) brightness(1.02); }
+.full-map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
 
 .top-bar {
   position: absolute;
