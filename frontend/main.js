@@ -26,13 +26,11 @@ const state = {
   lat: '',
   lng: '',
   me: null,
-  activePanel: '',
-  authMode: 'login',
-  autoLocated: false,
   interactions: [],
-  menuOpen: false,
-  topCompact: false,
-  compactTimer: null
+  autoLocated: false,
+  activeTab: 'nearby',
+  sheetOpen: true,
+  authMode: 'login'
 }
 
 const app = document.querySelector('#app')
@@ -87,10 +85,8 @@ function generateMockNearbyByRoles() {
   const myLat = Number(state.lat)
   const myLng = Number(state.lng)
   if (!Number.isFinite(myLat) || !Number.isFinite(myLng)) return []
-
   const selected = (state.selectedRoles || []).map(id => state.roles.find(r => Number(r.id) === Number(id))).filter(Boolean)
   if (!selected.length) return []
-
   let idx = 1
   const out = []
   selected.forEach(role => {
@@ -102,6 +98,7 @@ function generateMockNearbyByRoles() {
         nickname: `${role.name}${i + 1}号`,
         roleCode: role.code,
         roleName: role.name,
+        bio: `我是${role.name}，可随时接单/互动。`,
         lat: Number(lat.toFixed(7)),
         lng: Number(lng.toFixed(7))
       })
@@ -132,39 +129,24 @@ function applyNearby1kmFilter() {
 function mountShell() {
   app.innerHTML = `
     <div class="map-page">
-      <div id="topOverlay" class="top-overlay"></div>
-      <div id="floatingPanel"></div>
+      <div id="topBar" class="top-bar"></div>
       <div id="map" class="full-map"></div>
-      <div id="bottomOverlay" class="bottom-overlay"></div>
+      <div id="sheet" class="bottom-sheet"></div>
+      <div id="tabbar" class="tabbar"></div>
     </div>
   `
-}
-
-function setTopCompact(compact) {
-  state.topCompact = compact
-  renderTopOverlay()
-  bindActions()
-}
-
-function pulseTopCompact() {
-  setTopCompact(true)
-  if (state.compactTimer) clearTimeout(state.compactTimer)
-  state.compactTimer = setTimeout(() => setTopCompact(false), 800)
 }
 
 function initMap() {
   if (state.map) return
   state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
-
-  const baseLayers = [
-    { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', options: { subdomains: 'abcd', maxZoom: 19, minZoom: 3, attribution: '&copy; OpenStreetMap &copy; CARTO' } },
-    { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', options: { subdomains: ['a', 'b', 'c'], maxZoom: 19, minZoom: 3, attribution: '&copy; OpenStreetMap' } },
-    { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', options: { subdomains: ['a', 'b', 'c'], maxZoom: 17, minZoom: 3, attribution: '&copy; OpenTopoMap' } }
+  const layers = [
+    { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', options: { subdomains: 'abcd', maxZoom: 19, minZoom: 3, attribution: '&copy; CARTO' } },
+    { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', options: { subdomains: ['a', 'b', 'c'], maxZoom: 19, minZoom: 3, attribution: '&copy; OpenStreetMap' } }
   ]
-
   let idx = 0
   const load = () => {
-    const conf = baseLayers[idx]
+    const conf = layers[idx]
     if (!conf) return
     const layer = window.L.tileLayer(conf.url, conf.options)
     let switched = false
@@ -178,12 +160,6 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
-
-  state.map.on('movestart zoomstart', () => setTopCompact(true))
-  state.map.on('moveend zoomend', () => {
-    if (state.compactTimer) clearTimeout(state.compactTimer)
-    state.compactTimer = setTimeout(() => setTopCompact(false), 350)
-  })
 }
 
 function clearMapOverlays() {
@@ -201,10 +177,10 @@ function renderMapOverlays() {
   clearMapOverlays()
   const myLat = Number(state.lat)
   const myLng = Number(state.lng)
-  let circleBounds = null
   if (Number.isFinite(myLat) && Number.isFinite(myLng)) {
-    circleBounds = getMapCircleBounds(myLat, myLng, 1000)
-    state.myCircle = window.L.circle([myLat, myLng], { radius: 1000, color: '#38bdf8', weight: 2, fillOpacity: 0 }).addTo(state.map)
+    const circleBounds = getMapCircleBounds(myLat, myLng, 1000)
+    state.myCircle = window.L.circle([myLat, myLng], { radius: 1000, color: '#38bdf8', weight: 1.5, fillOpacity: 0 }).addTo(state.map)
+    state.map.fitBounds(circleBounds, { padding: [32, 32] })
   }
 
   ;(state.nearby1km || []).forEach(item => {
@@ -217,159 +193,147 @@ function renderMapOverlays() {
     const icon = window.L.divIcon({
       className: '',
       html: `<div class="avatar-pin">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>`,
-      iconSize: [42, 42],
-      iconAnchor: [21, 21]
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
     })
     const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
     marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>`)
     state.markers.push(marker)
   })
-
-  if (circleBounds) state.map.fitBounds(circleBounds, { padding: [24, 24] })
   state.map.invalidateSize()
 }
 
-function renderTopOverlay() {
-  const el = document.getElementById('topOverlay')
+function renderTopBar() {
+  const el = document.getElementById('topBar')
   if (!el) return
-  el.className = `top-overlay ${state.topCompact ? 'compact' : ''}`
+  const meUser = (state.me && state.me.user) || {}
   el.innerHTML = `
-    <div class="top-actions left-menu">
-      <button class="menu-btn" id="toggleMenu">☰ 菜单</button>
-      ${state.menuOpen ? `
-        <div class="menu-pop menu-pop-open">
-          <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
-          <button class="mini-btn" id="toggleRoles">角色</button>
-          <button class="mini-btn" id="toggleInteractions">互动</button>
-          <button class="mini-btn" id="geoLocate">定位</button>
-          <button class="mini-btn" id="loadNearby">刷新</button>
-        </div>
-      ` : ''}
+    <div class="brand-chip">
+      <div class="brand">sharele</div>
+      <div class="sub">移动职业/兴趣角色地图</div>
     </div>
-    <div class="logo-block"><div class="brand">sharele</div><div class="sub">移动职业/兴趣角色地图</div></div>
-    <div class="status-line">
-      <span>定位：${state.gpsStatus}</span>
-      <span>筛选：</span>
-      <select id="filterRole" class="chip-select">
-        <option value="">全部角色</option>
-        ${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}
-      </select>
+    <div class="top-right">
+      <div class="gps-chip">${state.gpsStatus}</div>
+      <button class="avatar-entry" id="openMy">${meUser.avatarUrl ? `<img src="${meUser.avatarUrl}" alt="me" />` : `<span>${(meUser.nickname || '我').slice(0,1)}</span>`}</button>
     </div>
   `
 }
 
-function renderPanel() {
-  const el = document.getElementById('floatingPanel')
+function renderSheet() {
+  const el = document.getElementById('sheet')
   if (!el) return
-  if (!state.activePanel) {
-    el.innerHTML = ''
-    return
+  const meUser = (state.me && state.me.user) || {}
+  const canEditRoles = Boolean(state.token && meUser.verifyStatus === 'approved')
+
+  let content = ''
+  if (state.activeTab === 'nearby') {
+    content = `
+      <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">地图是主角，列表只是辅助筛选。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
+      <div class="nearby-list">${state.nearby1km.map(item => `<div class="nearby-row"><div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.roleName || '未设置角色'} · ${(item.distanceKm || 0).toFixed(2)} km</div></div><button class="ghost-btn interact-inline" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}">互动</button></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>
+    `
+  } else if (state.activeTab === 'roles') {
+    content = `
+      <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">先选你的身份，地图就显示同系列人群。</div></div></div>
+      ${!state.token ? '<div class="warn-line">请先登录</div>' : ''}
+      ${state.token && !canEditRoles ? '<div class="warn-line">请先在“我的”里完成实名认证</div>' : ''}
+      <div id="roleBoxes" class="role-grid"></div>
+      <div class="role-actions"><select id="primaryRole" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="primary-btn" ${canEditRoles ? '' : 'disabled'}>保存并显示</button></div>
+    `
+  } else if (state.activeTab === 'interactions') {
+    content = `
+      <div class="sheet-head"><div><div class="sheet-title">互动记录</div><div class="sheet-sub">你发起过的联系和收到的联系。</div></div></div>
+      <div class="nearby-list">${(state.interactions || []).map(it => `<div class="nearby-row"><div><div class="nearby-name">${it.fromNickname || ('用户'+it.fromUserId)} → ${it.toNickname || ('用户'+it.toUserId)}</div><div class="small">${it.message || '（无附言）'} · ${it.status}</div></div></div>`).join('') || '<div class="small">暂无互动记录</div>'}</div>
+    `
+  } else {
+    content = `
+      <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料都放这里。</div></div></div>
+      ${state.token ? `
+        <div class="account-card">
+          <div class="account-main">
+            <div class="account-avatar">${meUser.avatarUrl ? `<img src="${meUser.avatarUrl}" alt="me" />` : `<span>${(meUser.nickname || '我').slice(0,1)}</span>`}</div>
+            <div><div class="nearby-name">${meUser.nickname || meUser.phone || '未登录用户'}</div><div class="small">实名状态：${meUser.verifyStatus || '未知'}</div></div>
+          </div>
+          <div class="account-actions">
+            <button class="ghost-btn" id="openVerify">实名认证</button>
+            <button class="ghost-btn" id="openProfile">资料设置</button>
+            <button class="ghost-btn" id="logout">退出登录</button>
+          </div>
+        </div>
+      ` : `
+        <div class="login-card">
+          <div class="tab-mini"><button class="ghost-btn ${state.authMode==='login'?'active':''}" id="tabLogin">登录</button><button class="ghost-btn ${state.authMode==='register'?'active':''}" id="tabRegister">注册</button></div>
+          <div class="form-grid"><input id="phone" class="sheet-input" placeholder="手机号" /><input id="password" class="sheet-input" placeholder="密码" type="password" />${state.authMode === 'register' ? '<input id="nickname" class="sheet-input" placeholder="昵称（注册可填）" />' : ''}<button id="submitAuth" class="primary-btn">${state.authMode === 'login' ? '登录' : '注册'}</button></div>
+        </div>
+      `}
+      <div id="subPanel"></div>
+    `
   }
 
-  if (state.activePanel === 'auth') {
-    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">${state.token ? '账户' : '登录 / 注册'}</div><button class="mini-btn" id="closePanel">关闭</button></div>
-    ${state.token ? `<div class="panel-row"><div class="panel-note">当前：${state.me ? (state.me.user.nickname || state.me.user.phone) : '已登录'}</div><div class="panel-note">实名状态：${state.me ? state.me.user.verifyStatus : '未知'}</div></div><div class="panel-row"><button id="openVerifyFromAccount" class="btn sec">实名认证</button><button id="openProfileFromAccount" class="btn sec">资料设置</button><button id="logout" class="btn sec">退出登录</button></div>` : `<div class="panel-tabs"><button class="mini-btn ${state.authMode === 'login' ? 'active' : ''}" id="tabLogin">登录</button><button class="mini-btn ${state.authMode === 'register' ? 'active' : ''}" id="tabRegister">注册</button></div><div class="panel-row"><input id="phone" class="input" placeholder="手机号" /><input id="password" class="input" placeholder="密码" type="password" />${state.authMode === 'register' ? '<input id="nickname" class="input" placeholder="昵称（注册可填）" />' : ''}<button id="submitAuth" class="btn">${state.authMode === 'login' ? '登录' : '注册'}</button></div>`}</div>`
-    return
-  }
+  el.className = `bottom-sheet ${state.sheetOpen ? 'open' : ''}`
+  el.innerHTML = `<div class="sheet-handle" id="toggleSheet"></div><div class="sheet-content">${content}</div>`
 
-  if (state.activePanel === 'profile') {
-    const meUser = (state.me && state.me.user) || {}
-    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">个人资料</div><button class="mini-btn" id="closePanel">关闭</button></div><div class="panel-row"><input id="pNickname" class="input" placeholder="昵称" value="${meUser.nickname || ''}" /><input id="pAvatar" class="input" placeholder="头像URL（http/https）" value="${meUser.avatarUrl || ''}" /><input id="pBio" class="input" placeholder="一句话介绍" value="${meUser.bio || ''}" /><select id="pGender" class="select"><option value="">性别(可选)</option><option value="male" ${meUser.gender==='male'?'selected':''}>男</option><option value="female" ${meUser.gender==='female'?'selected':''}>女</option></select><button id="saveProfile" class="btn">保存资料</button></div></div>`
-    return
-  }
-
-  if (state.activePanel === 'interactions') {
-    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">互动记录</div><button class="mini-btn" id="closePanel">关闭</button></div><div class="panel-row" style="display:block">${(state.interactions || []).map(it => `<div class="interaction-item"><div><b>${it.fromNickname || ('用户'+it.fromUserId)}</b> → <b>${it.toNickname || ('用户'+it.toUserId)}</b></div><div class="small">${it.message || '（无附言）'} · ${it.status}</div></div>`).join('') || '<div class="small">暂无互动记录</div>'}</div></div>`
-    return
-  }
-
-  if (state.activePanel === 'verify') {
-    const canVerify = Boolean(state.token)
-    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">实名认证</div><button class="mini-btn" id="closePanel">关闭</button></div>${!canVerify ? '<div class="panel-note warn">请先登录后再实名认证</div>' : ''}<div class="panel-row"><input id="realName" class="input" placeholder="真实姓名" ${canVerify ? '' : 'disabled'} value="${state.me ? (state.me.user.realName || '') : ''}" /><input id="idCardNo" class="input" placeholder="身份证号" ${canVerify ? '' : 'disabled'} /><button id="verify" class="btn" ${canVerify ? '' : 'disabled'}>提交实名</button></div></div>`
-    return
-  }
-
-  const canEdit = Boolean(state.token && state.me && state.me.user && state.me.user.verifyStatus === 'approved')
-  if (!state.roles || !state.roles.length) state.roles = [...FALLBACK_ROLES]
-  el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">选择角色</div><button class="mini-btn" id="closePanel">关闭</button></div>${!state.token ? '<div class="panel-note warn">请先登录，未登录不能选角色</div>' : ''}${state.token && !canEdit ? '<div class="panel-note warn">请先完成实名认证后再选角色</div>' : ''}<div class="panel-row" id="roleBoxes"></div><div class="panel-row"><select id="primaryRole" class="select" ${canEdit ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId) === Number(r.id) ? 'selected' : ''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="btn" ${canEdit ? '' : 'disabled'}>保存角色</button></div></div>`
-
-  const box = document.getElementById('roleBoxes')
-  if (box) {
-    box.innerHTML = state.roles.map(r => `<label class="role-item"><input type="checkbox" value="${r.id}" ${state.selectedRoles.includes(Number(r.id)) ? 'checked' : ''} ${canEdit ? '' : 'disabled'} /><span>${r.name}</span><span class="small">${r.category}</span></label>`).join('')
-    box.querySelectorAll('input[type="checkbox"]').forEach(elm => elm.addEventListener('change', () => {
-      const id = Number(elm.value)
-      if (elm.checked) {
-        if (!state.selectedRoles.includes(id)) state.selectedRoles.push(id)
-      } else state.selectedRoles = state.selectedRoles.filter(x => x !== id)
-    }))
+  if (state.activeTab === 'roles') {
+    const box = document.getElementById('roleBoxes')
+    const canEdit = canEditRoles
+    if (box) {
+      box.innerHTML = state.roles.map(r => `<label class="role-card"><input type="checkbox" value="${r.id}" ${state.selectedRoles.includes(Number(r.id)) ? 'checked' : ''} ${canEdit ? '' : 'disabled'} /><span>${r.name}</span><small>${r.category}</small></label>`).join('')
+      box.querySelectorAll('input[type="checkbox"]').forEach(elm => elm.addEventListener('change', () => {
+        const id = Number(elm.value)
+        if (elm.checked) {
+          if (!state.selectedRoles.includes(id)) state.selectedRoles.push(id)
+        } else state.selectedRoles = state.selectedRoles.filter(x => x !== id)
+      }))
+    }
   }
 }
 
-function renderBottom() {
-  const el = document.getElementById('bottomOverlay')
+function renderTabbar() {
+  const el = document.getElementById('tabbar')
   if (!el) return
-  el.innerHTML = `<div class="nearby-title">附近 1km 角色（${state.nearby1km.length}）</div><div class="nearby-scroll">${state.nearby1km.map(item => `<div class="nearby-item"><div class="nearby-top"><div class="tag">${roleVisual(item.roleCode).emoji} ${item.roleName || '未设置角色'}</div><div class="distance-chip">${(item.distanceKm || 0).toFixed(2)} km</div></div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.lat}, ${item.lng}</div></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>`
+  const tabs = [
+    { key: 'nearby', label: '附近', icon: '🧭' },
+    { key: 'roles', label: '角色', icon: '🏷️' },
+    { key: 'interactions', label: '互动', icon: '💬' },
+    { key: 'my', label: '我的', icon: '👤' }
+  ]
+  el.innerHTML = tabs.map(tab => `<button class="tab-btn ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}"><span>${tab.icon}</span><em>${tab.label}</em></button>`).join('')
 }
 
 function renderUI() {
   applyNearby1kmFilter()
-  renderTopOverlay()
-  renderPanel()
-  renderBottom()
+  renderTopBar()
+  renderSheet()
+  renderTabbar()
   renderMapOverlays()
   bindActions()
-}
-
-function togglePanel(panel) {
-  state.activePanel = state.activePanel === panel ? '' : panel
-  renderUI()
 }
 
 function bindActions() {
   const $ = (id) => document.getElementById(id)
 
-  const jellyThen = (el, next, delay = 200) => {
-    if (!el) return next()
-    el.classList.add('jelly-active')
-    setTimeout(() => {
-      el.classList.remove('jelly-active')
-      next()
-    }, delay)
-  }
+  $('toggleSheet')?.addEventListener('click', () => {
+    state.sheetOpen = !state.sheetOpen
+    renderUI()
+  })
 
-  $('toggleMenu')?.addEventListener('click', (e) => {
-    const el = e.currentTarget
-    jellyThen(el, () => {
-      state.menuOpen = !state.menuOpen
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tab = btn.getAttribute('data-tab')
+      state.activeTab = tab
+      state.sheetOpen = true
+      if (tab === 'interactions' && state.token) {
+        state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
+      }
       renderUI()
-    }, 150)
-  })
-
-  $('toggleAuth')?.addEventListener('click', (e) => {
-    jellyThen(e.currentTarget, () => {
-      state.menuOpen = false
-      togglePanel('auth')
     })
   })
 
-  $('toggleRoles')?.addEventListener('click', (e) => {
-    jellyThen(e.currentTarget, () => {
-      state.menuOpen = false
-      togglePanel('roles')
-    })
+  $('openMy')?.addEventListener('click', () => {
+    state.activeTab = 'my'
+    state.sheetOpen = true
+    renderUI()
   })
 
-  $('toggleInteractions')?.addEventListener('click', async (e) => {
-    jellyThen(e.currentTarget, async () => {
-      if (!state.token) return alert('请先登录')
-      state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
-      state.menuOpen = false
-      togglePanel('interactions')
-    })
-  })
-  $('closePanel')?.addEventListener('click', () => { state.activePanel = ''; renderUI() })
-  $('openVerifyFromAccount')?.addEventListener('click', () => { state.activePanel = 'verify'; renderUI() })
-  $('openProfileFromAccount')?.addEventListener('click', () => { state.activePanel = 'profile'; renderUI() })
   $('tabLogin')?.addEventListener('click', () => { state.authMode = 'login'; renderUI() })
   $('tabRegister')?.addEventListener('click', () => { state.authMode = 'register'; renderUI() })
 
@@ -380,14 +344,15 @@ function bindActions() {
       const nickname = $('nickname') ? $('nickname').value.trim() : ''
       if (state.authMode === 'register') {
         await request('/auth/register', { method: 'POST', body: JSON.stringify({ phone, password, nickname }) })
-        state.authMode = 'login'; alert('注册成功，请登录'); renderUI(); return
+        state.authMode = 'login'
+        alert('注册成功，请登录')
+        renderUI()
+        return
       }
       const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password }) })
       state.token = data.token
       localStorage.setItem('sharele_token', data.token)
       await loadMe()
-      state.activePanel = ''
-      alert('登录成功')
       renderUI()
     } catch (e) { alert(e.message) }
   })
@@ -399,8 +364,20 @@ function bindActions() {
     state.primaryRoleId = null
     localStorage.removeItem('sharele_token')
     localStorage.removeItem(VERIFY_OVERRIDE_KEY)
-    state.activePanel = ''
     renderUI()
+  })
+
+  $('openVerify')?.addEventListener('click', () => {
+    const host = document.getElementById('subPanel')
+    if (host) host.innerHTML = `<div class="sub-card"><div class="sheet-title">实名认证</div><div class="form-grid"><input id="realName" class="sheet-input" placeholder="真实姓名" value="${state.me?.user?.realName || ''}" /><input id="idCardNo" class="sheet-input" placeholder="身份证号" /><button id="verify" class="primary-btn">提交实名</button></div></div>`
+    bindActions()
+  })
+
+  $('openProfile')?.addEventListener('click', () => {
+    const meUser = (state.me && state.me.user) || {}
+    const host = document.getElementById('subPanel')
+    if (host) host.innerHTML = `<div class="sub-card"><div class="sheet-title">资料设置</div><div class="form-grid"><input id="pNickname" class="sheet-input" placeholder="昵称" value="${meUser.nickname || ''}" /><input id="pAvatar" class="sheet-input" placeholder="头像URL（http/https）" value="${meUser.avatarUrl || ''}" /><input id="pBio" class="sheet-input" placeholder="一句话介绍" value="${meUser.bio || ''}" /><select id="pGender" class="sheet-select"><option value="">性别(可选)</option><option value="male" ${meUser.gender==='male'?'selected':''}>男</option><option value="female" ${meUser.gender==='female'?'selected':''}>女</option></select><button id="saveProfile" class="primary-btn">保存资料</button></div></div>`
+    bindActions()
   })
 
   $('verify')?.addEventListener('click', async () => {
@@ -408,30 +385,15 @@ function bindActions() {
       const realName = String($('realName')?.value || '').trim()
       const idCardNo = String($('idCardNo')?.value || '').trim()
       if (!realName || !idCardNo) return alert('请填写真实姓名和身份证号')
-
       try {
         await request('/verify/realname', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ realName, idCardNo }) })
-      } catch (_e) {
-        // 假接口兜底：后端不可用或校验异常时，先本地标记已实名，避免阻塞前端流程
-        state.me = state.me || { user: {}, roles: [] }
-        state.me.user = {
-          ...(state.me.user || {}),
-          realName,
-          verifyStatus: 'approved'
-        }
-      }
-
+      } catch (_) {}
       await loadMe().catch(() => {})
       state.me = state.me || { user: {}, roles: [] }
-      state.me.user = {
-        ...(state.me.user || {}),
-        realName,
-        verifyStatus: 'approved'
-      }
+      state.me.user = { ...(state.me.user || {}), realName, verifyStatus: 'approved' }
       localStorage.setItem(VERIFY_OVERRIDE_KEY, 'approved')
-      state.activePanel = ''
-      alert('实名提交成功')
       renderUI()
+      alert('实名提交成功')
     } catch (e) { alert(e.message) }
   })
 
@@ -445,9 +407,8 @@ function bindActions() {
       }
       await request('/user/profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) })
       await loadMe()
-      alert('资料已更新')
-      state.activePanel = ''
       renderUI()
+      alert('资料已更新')
     } catch (e) { alert(e.message) }
   })
 
@@ -455,27 +416,42 @@ function bindActions() {
     try {
       const primaryRoleId = Number($('primaryRole').value || 0) || null
       if (!state.selectedRoles.length) return alert('请先选择至少一个角色')
-
       try {
         const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
         state.primaryRoleId = ret.primaryRoleId
-      } catch (_e) {
+      } catch (_) {
         state.primaryRoleId = primaryRoleId || state.selectedRoles[0]
       }
-
       state.nearby = generateMockNearbyByRoles()
-      state.activePanel = ''
-      alert('角色保存成功，已加载同系列附近数据')
+      state.activeTab = 'nearby'
       renderUI()
     } catch (e) { alert(e.message) }
   })
 
+  $('filterRole')?.addEventListener('change', async (e) => {
+    state.filterRoleCode = e.target.value
+    const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
+    renderUI()
+  })
+
+  document.querySelectorAll('.interact-btn, .interact-inline').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const target = e.currentTarget.getAttribute('data-target') || 'TA'
+      const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
+      if (!state.token) return alert('请先登录再互动')
+      const message = window.prompt(`给 ${target} 留一句话（可选）`, '你好，想认识一下') || ''
+      try {
+        await request('/interactions', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ toUserId, message }) })
+        alert(`已向 ${target} 发起互动`)
+      } catch (err) {
+        alert(err.message || '互动发送失败')
+      }
+    })
+  })
+
   const runGeoLocate = () => {
-    if (!navigator.geolocation) {
-      state.gpsStatus = '当前浏览器不支持定位'
-      renderUI()
-      return
-    }
+    if (!navigator.geolocation) return alert('当前浏览器不支持定位')
     state.gpsStatus = '定位中...'
     renderUI()
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -488,52 +464,16 @@ function bindActions() {
         await request('/user/location', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ lat, lng, isOnline: true }) }).catch(() => {})
       }
       renderUI()
-    }, (err) => {
-      state.gpsStatus = `定位失败：${err.message || '请检查定位权限'}`
+    }, () => {
+      state.gpsStatus = '定位失败，请手动授权'
       renderUI()
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
   }
 
-  $('geoLocate')?.addEventListener('click', (e) => {
-    jellyThen(e.currentTarget, runGeoLocate)
-  })
-
-  $('loadNearby')?.addEventListener('click', async (e) => {
-    jellyThen(e.currentTarget, async () => {
-      try {
-        const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-        const list = await request(`/map/nearby${query}`, { headers: authHeaders() })
-        state.nearby = (list && list.length) ? list : generateMockNearbyByRoles()
-        renderUI()
-      } catch (_e) {
-        state.nearby = generateMockNearbyByRoles()
-        renderUI()
-        alert('已切换为本地假数据预览')
-      }
-    })
-  })
-
-  $('filterRole')?.addEventListener('change', (e) => { state.filterRoleCode = e.target.value })
-
-  document.querySelectorAll('.interact-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const target = e.currentTarget.getAttribute('data-target') || 'TA'
-      const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
-      if (!state.token) return alert('请先登录再互动')
-
-      const message = window.prompt(`给 ${target} 留一句话（可选）`, '你好，想认识一下') || ''
-      try {
-        await request('/interactions', {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ toUserId, message })
-        })
-        alert(`已向 ${target} 发起互动`)
-      } catch (err) {
-        alert(err.message || '互动发送失败')
-      }
-    })
-  })
+  if (!state.autoLocated && navigator.geolocation) {
+    state.autoLocated = true
+    runGeoLocate()
+  }
 }
 
 async function loadMe() {
@@ -545,63 +485,27 @@ async function loadMe() {
   const primary = (me.roles || []).find(r => Number(r.isPrimary) === 1)
   state.primaryRoleId = primary ? Number(primary.id) : (state.selectedRoles[0] || null)
   const verifyOverride = localStorage.getItem(VERIFY_OVERRIDE_KEY)
-  if (verifyOverride === 'approved') {
-    state.me.user.verifyStatus = 'approved'
-  }
-
+  if (verifyOverride === 'approved') state.me.user.verifyStatus = 'approved'
   if (me.location) {
     state.lat = String(me.location.lat ?? '')
     state.lng = String(me.location.lng ?? '')
   }
 }
 
-window.addEventListener('wheel', () => {
-  pulseTopCompact()
-}, { passive: true })
-
 async function bootstrap() {
   mountShell()
   initMap()
-
   const [roles] = await Promise.all([
     request('/roles').catch(() => []),
     loadMe()
   ])
-  state.roles = roles
-  if (!state.roles || !state.roles.length) {
-    state.roles = [...FALLBACK_ROLES]
-  }
-
-  // 先把基础 UI 渲染出来，避免首屏等待接口显得卡
-  if (!state.nearby || !state.nearby.length) {
-    state.nearby = generateMockNearbyByRoles()
-  }
-  renderUI()
-
-  // 再异步刷新真实附近数据
+  state.roles = roles && roles.length ? roles : [...FALLBACK_ROLES]
   if (state.token) {
     const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
-    renderUI()
+    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => [])
   }
-
-  if (!state.autoLocated && navigator.geolocation) {
-    state.autoLocated = true
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const lat = Number(pos.coords.latitude.toFixed(7))
-      const lng = Number(pos.coords.longitude.toFixed(7))
-      state.lat = String(lat)
-      state.lng = String(lng)
-      state.gpsStatus = `自动定位成功：${lat}, ${lng}`
-      if (state.token) {
-        await request('/user/location', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ lat, lng, isOnline: true }) }).catch(() => {})
-      }
-      renderUI()
-    }, () => {
-      state.gpsStatus = '自动定位未授权，可手动点击定位'
-      renderUI()
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
-  }
+  if (!state.nearby || !state.nearby.length) state.nearby = generateMockNearbyByRoles()
+  renderUI()
 }
 
 bootstrap()
