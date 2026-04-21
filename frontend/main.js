@@ -214,8 +214,16 @@ function renderTopOverlay() {
   if (!el) return
   el.innerHTML = `
     <div class="logo-block"><div class="brand">sharele</div><div class="sub">移动职业/兴趣角色地图</div></div>
+    <div class="status-line">
+      <span>定位：${state.gpsStatus}</span>
+      <span>筛选：</span>
+      <select id="filterRole" class="chip-select">
+        <option value="">全部角色</option>
+        ${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}
+      </select>
+    </div>
     <div class="top-actions">
-      <button class="mini-btn" id="toggleMenu">☰ 菜单</button>
+      <button class="menu-btn" id="toggleMenu">☰</button>
       ${state.menuOpen ? `
         <div class="menu-pop">
           <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
@@ -225,14 +233,6 @@ function renderTopOverlay() {
           <button class="mini-btn" id="loadNearby">刷新</button>
         </div>
       ` : ''}
-    </div>
-    <div class="status-line">
-      <span>定位：${state.gpsStatus}</span>
-      <span>筛选：</span>
-      <select id="filterRole" class="chip-select">
-        <option value="">全部角色</option>
-        ${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}
-      </select>
     </div>
   `
 }
