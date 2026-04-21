@@ -157,6 +157,13 @@ function applyNearby1kmFilter() {
 }
 
 function render() {
+  if (state.map) {
+    state.map.remove()
+    state.map = null
+    state.markers = []
+    state.myCircle = null
+  }
+
   app.innerHTML = `
     <div class="map-page">
       <div class="top-overlay">
@@ -258,10 +265,12 @@ function renderMap() {
   if (!mapEl || !window.L) return
 
   if (!state.map) {
-    state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 11)
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
+    state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
+    window.L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}', {
+      subdomains: ['1', '2', '3', '4'],
+      maxZoom: 18,
+      minZoom: 3,
+      attribution: '© 高德地图'
     }).addTo(state.map)
   }
 
