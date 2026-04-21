@@ -106,7 +106,7 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .panel-title { font-weight: 700; }
 .panel-tabs { display: flex; gap: 8px; margin-bottom: 8px; }
-.panel-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.panel-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
 .panel-note { color: var(--muted); font-size: 12px; }
 .panel-note.warn { color: #fdba74; }
 
@@ -118,7 +118,7 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   padding: 10px 12px;
   font-size: 13px;
 }
-.input, .select { width: min(260px, 100%); }
+.input, .select { width: min(280px, 100%); }
 .btn { cursor: pointer; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; font-weight: 700; }
 .btn.sec { background: linear-gradient(145deg, rgba(15,23,42,.86), rgba(30,41,59,.72)); border: 1px solid rgba(255,255,255,.24); }
 
