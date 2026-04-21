@@ -160,6 +160,9 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
+  state.map.on('zoomend moveend', () => {
+    renderMapOverlays()
+  })
 }
 
 function clearMapOverlays() {
@@ -170,6 +173,46 @@ function clearMapOverlays() {
     state.map.removeLayer(state.myCircle)
     state.myCircle = null
   }
+}
+
+function clusterNearbyItems(items = []) {
+  if (!state.map) return []
+  const zoom = state.map.getZoom()
+  if (zoom >= 16) {
+    return items.map(item => ({ type: 'single', items: [item], center: [Number(item.lat), Number(item.lng)] }))
+  }
+
+  const radiusPx = zoom >= 14 ? 44 : 60
+  const clusters = []
+  items.forEach(item => {
+    const lat = Number(item.lat)
+    const lng = Number(item.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    const point = state.map.latLngToLayerPoint([lat, lng])
+    let matched = null
+    for (const cluster of clusters) {
+      const dx = cluster.point.x - point.x
+      const dy = cluster.point.y - point.y
+      if (Math.sqrt(dx * dx + dy * dy) <= radiusPx) {
+        matched = cluster
+        break
+      }
+    }
+    if (matched) {
+      matched.items.push(item)
+      const count = matched.items.length
+      matched.center = [
+        (matched.center[0] * (count - 1) + lat) / count,
+        (matched.center[1] * (count - 1) + lng) / count
+      ]
+    } else {
+      clusters.push({ type: 'cluster', items: [item], point, center: [lat, lng] })
+    }
+  })
+
+  return clusters.map(cluster => cluster.items.length === 1
+    ? { type: 'single', items: cluster.items, center: [Number(cluster.items[0].lat), Number(cluster.items[0].lng)] }
+    : cluster)
 }
 
 function renderMapOverlays() {
@@ -183,10 +226,25 @@ function renderMapOverlays() {
     state.map.fitBounds(circleBounds, { padding: [32, 32] })
   }
 
-  ;(state.nearby1km || []).forEach(item => {
-    const lat = Number(item.lat)
-    const lng = Number(item.lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  const clustered = clusterNearbyItems(state.nearby1km || [])
+  clustered.forEach(group => {
+    const [lat, lng] = group.center
+    if (group.items.length > 1) {
+      const icon = window.L.divIcon({
+        className: '',
+        html: `<div class="cluster-pin"><span>${group.items.length}</span></div>`,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
+      })
+      const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
+      marker.on('click', () => {
+        state.map.setView([lat, lng], Math.min((state.map.getZoom() || 13) + 2, 18), { animate: true })
+      })
+      state.markers.push(marker)
+      return
+    }
+
+    const item = group.items[0]
     const visual = roleVisual(item.roleCode)
     const avatarUrl = item.avatarUrl || ''
     const name = item.nickname || `用户${item.id}`
@@ -196,7 +254,7 @@ function renderMapOverlays() {
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     })
-    const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
+    const marker = window.L.marker([lat, lng], { icon, riseOnHover: true }).addTo(state.map)
     marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>`)
     state.markers.push(marker)
   })
