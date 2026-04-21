@@ -232,6 +232,13 @@ function initLeafletMap() {
   }
   load()
   state.map.on('zoomend moveend', handleMapViewportChange)
+  state.map.on('click', () => {
+    if (state.sheetOpen) {
+      state.sheetOpen = false
+      renderSheet()
+      bindActions()
+    }
+  })
 }
 
 function initAmap() {
@@ -246,6 +253,13 @@ function initAmap() {
   renderTopBar()
   state.map.on('zoomend', handleMapViewportChange)
   state.map.on('moveend', handleMapViewportChange)
+  state.map.on('click', () => {
+    if (state.sheetOpen) {
+      state.sheetOpen = false
+      renderSheet()
+      bindActions()
+    }
+  })
 }
 
 function initMap() {
