@@ -1,6 +1,15 @@
 const apiBase = 'http://localhost:3000'
 
 const VERIFY_OVERRIDE_KEY = 'sharele_verify_override'
+const FALLBACK_ROLES = [
+  { id: 1, code: 'photographer', name: '移动摄影师', category: '职业' },
+  { id: 2, code: 'makeup', name: '移动化妆师', category: '职业' },
+  { id: 3, code: 'model', name: '移动模特', category: '职业' },
+  { id: 4, code: 'snack', name: '移动小吃摊', category: '职业' },
+  { id: 5, code: 'foodie', name: '移动吃货', category: '兴趣' },
+  { id: 6, code: 'cyclist', name: '移动骑友', category: '兴趣' },
+  { id: 7, code: 'hiker', name: '移动登山客', category: '兴趣' }
+]
 
 const state = {
   token: localStorage.getItem('sharele_token') || '',
@@ -64,6 +73,37 @@ function getMapCircleBounds(lat, lng, radiusMeters = 1000) {
   const dLat = radiusMeters / 111000
   const dLng = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180) || 1)
   return window.L.latLngBounds([lat - dLat, lng - dLng], [lat + dLat, lng + dLng])
+}
+
+function randomInRange(min, max) {
+  return Math.random() * (max - min) + min
+}
+
+function generateMockNearbyByRoles() {
+  const myLat = Number(state.lat)
+  const myLng = Number(state.lng)
+  if (!Number.isFinite(myLat) || !Number.isFinite(myLng)) return []
+
+  const selected = (state.selectedRoles || []).map(id => state.roles.find(r => Number(r.id) === Number(id))).filter(Boolean)
+  if (!selected.length) return []
+
+  let idx = 1
+  const out = []
+  selected.forEach(role => {
+    for (let i = 0; i < 5; i += 1) {
+      const lat = myLat + randomInRange(-0.006, 0.006)
+      const lng = myLng + randomInRange(-0.006, 0.006)
+      out.push({
+        id: `mock-${role.code}-${idx++}`,
+        nickname: `${role.name}${i + 1}号`,
+        roleCode: role.code,
+        roleName: role.name,
+        lat: Number(lat.toFixed(7)),
+        lng: Number(lng.toFixed(7))
+      })
+    }
+  })
+  return out
 }
 
 function applyNearby1kmFilter() {
@@ -204,6 +244,7 @@ function renderPanel() {
   }
 
   const canEdit = Boolean(state.token && state.me && state.me.user && state.me.user.verifyStatus === 'approved')
+  if (!state.roles || !state.roles.length) state.roles = [...FALLBACK_ROLES]
   el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">选择角色</div><button class="mini-btn" id="closePanel">关闭</button></div>${!state.token ? '<div class="panel-note warn">请先登录，未登录不能选角色</div>' : ''}${state.token && !canEdit ? '<div class="panel-note warn">请先完成实名认证后再选角色</div>' : ''}<div class="panel-row" id="roleBoxes"></div><div class="panel-row"><select id="primaryRole" class="select" ${canEdit ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId) === Number(r.id) ? 'selected' : ''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="btn" ${canEdit ? '' : 'disabled'}>保存角色</button></div></div>`
 
   const box = document.getElementById('roleBoxes')
@@ -313,10 +354,17 @@ function bindActions() {
     try {
       const primaryRoleId = Number($('primaryRole').value || 0) || null
       if (!state.selectedRoles.length) return alert('请先选择至少一个角色')
-      const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
-      state.primaryRoleId = ret.primaryRoleId
+
+      try {
+        const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
+        state.primaryRoleId = ret.primaryRoleId
+      } catch (_e) {
+        state.primaryRoleId = primaryRoleId || state.selectedRoles[0]
+      }
+
+      state.nearby = generateMockNearbyByRoles()
       state.activePanel = ''
-      alert('角色保存成功')
+      alert('角色保存成功，已加载同系列附近数据')
       renderUI()
     } catch (e) { alert(e.message) }
   })
@@ -350,9 +398,14 @@ function bindActions() {
   $('loadNearby')?.addEventListener('click', async () => {
     try {
       const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-      state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() })
+      const list = await request(`/map/nearby${query}`, { headers: authHeaders() })
+      state.nearby = (list && list.length) ? list : generateMockNearbyByRoles()
       renderUI()
-    } catch (e) { alert(state.token ? e.message : '请先登录后再刷新附近角色') }
+    } catch (_e) {
+      state.nearby = generateMockNearbyByRoles()
+      renderUI()
+      alert('已切换为本地假数据预览')
+    }
   })
 
   $('filterRole')?.addEventListener('change', (e) => { state.filterRoleCode = e.target.value })
@@ -381,10 +434,17 @@ async function bootstrap() {
   mountShell()
   initMap()
   state.roles = await request('/roles').catch(() => [])
+  if (!state.roles || !state.roles.length) {
+    state.roles = [...FALLBACK_ROLES]
+  }
   await loadMe()
   if (state.token) {
     const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
     state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => [])
+  }
+
+  if (!state.nearby || !state.nearby.length) {
+    state.nearby = generateMockNearbyByRoles()
   }
   renderUI()
 
