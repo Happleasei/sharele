@@ -79,7 +79,7 @@ app.post('/user/location', authRequired, async (req, res) => {
 app.get('/map/nearby', authRequired, async (req, res) => {
   const { roleCode } = req.query
   const [rows] = await pool.query(
-    `SELECT u.id, u.nickname, r.name roleName, ul.lat, ul.lng, ul.updated_at
+    `SELECT u.id, u.nickname, r.code roleCode, r.name roleName, ul.lat, ul.lng, ul.updated_at
      FROM user_locations ul
      JOIN users u ON u.id = ul.user_id
      LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_primary = 1

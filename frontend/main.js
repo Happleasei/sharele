@@ -8,7 +8,10 @@ const state = {
   nearby: [],
   map: null,
   markers: [],
-  filterRoleCode: ''
+  filterRoleCode: '',
+  gpsStatus: '未定位',
+  lat: '',
+  lng: ''
 }
 
 const app = document.querySelector('#app')
@@ -25,6 +28,19 @@ async function request(path, options = {}) {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.message || '请求失败')
   return data
+}
+
+function roleVisual(roleCode = '') {
+  const map = {
+    photographer: { emoji: '📷', cls: 'role-photographer' },
+    makeup: { emoji: '💄', cls: 'role-makeup' },
+    model: { emoji: '🧍', cls: 'role-model' },
+    snack: { emoji: '🍢', cls: 'role-snack' },
+    foodie: { emoji: '🍜', cls: 'role-foodie' },
+    cyclist: { emoji: '🚴', cls: 'role-cyclist' },
+    hiker: { emoji: '⛰️', cls: 'role-hiker' }
+  }
+  return map[roleCode] || { emoji: '📍', cls: 'role-default' }
 }
 
 function render() {
@@ -65,10 +81,12 @@ function render() {
       <div class="card">
         <h3 class="h">4) 地图与附近角色</h3>
         <div class="row">
-          <input id="lat" class="input" placeholder="纬度，例如 30.2741" />
-          <input id="lng" class="input" placeholder="经度，例如 120.1551" />
+          <input id="lat" class="input" placeholder="纬度，例如 30.2741" value="${state.lat}" />
+          <input id="lng" class="input" placeholder="经度，例如 120.1551" value="${state.lng}" />
+          <button id="geoLocate" class="btn sec">自动定位(GPS)</button>
           <button id="uploadLoc" class="btn sec">更新我的位置</button>
         </div>
+        <div class="gps-note">定位状态：${state.gpsStatus}</div>
         <div class="row" style="margin-top:10px">
           <select id="filterRole" class="select">
             <option value="">全部角色</option>
@@ -80,7 +98,7 @@ function render() {
         <div class="grid" style="margin-top:12px">
           ${state.nearby.map(item => `
             <div class="item">
-              <div class="tag">${item.roleName || '未设置角色'}</div>
+              <div class="tag">${roleVisual(item.roleCode).emoji} ${item.roleName || '未设置角色'}</div>
               <div>${item.nickname || `用户${item.id}`}</div>
               <div class="small">lat: ${item.lat}, lng: ${item.lng}</div>
             </div>
@@ -145,8 +163,15 @@ function renderMap() {
     const lng = Number(item.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     points.push([lat, lng])
-    const marker = window.L.marker([lat, lng]).addTo(state.map)
-    marker.bindPopup(`<b>${item.nickname || `用户${item.id}`}</b><br/>${item.roleName || '未设置角色'}`)
+    const visual = roleVisual(item.roleCode)
+    const icon = window.L.divIcon({
+      className: '',
+      html: `<div class="role-pin ${visual.cls}">${visual.emoji}</div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    })
+    const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
+    marker.bindPopup(`<b>${item.nickname || `用户${item.id}`}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}`)
     state.markers.push(marker)
   })
 
@@ -190,9 +215,33 @@ function bindActions() {
     } catch (e) { alert(e.message) }
   }
 
+  $('geoLocate').onclick = () => {
+    if (!navigator.geolocation) {
+      state.gpsStatus = '当前浏览器不支持定位'
+      render()
+      return
+    }
+    state.gpsStatus = '定位中...'
+    render()
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const lat = Number(pos.coords.latitude.toFixed(7))
+      const lng = Number(pos.coords.longitude.toFixed(7))
+      state.lat = String(lat)
+      state.lng = String(lng)
+      state.gpsStatus = `定位成功：${lat}, ${lng}`
+      if (state.map) state.map.setView([lat, lng], 14)
+      render()
+    }, (err) => {
+      state.gpsStatus = `定位失败：${err.message || '请检查定位权限'}`
+      render()
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
+  }
+
   $('uploadLoc').onclick = async () => {
     try {
-      await request('/user/location', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ lat: Number($('lat').value), lng: Number($('lng').value), isOnline: true }) })
+      state.lat = $('lat').value
+      state.lng = $('lng').value
+      await request('/user/location', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ lat: Number(state.lat), lng: Number(state.lng), isOnline: true }) })
       alert('位置更新成功')
     } catch (e) { alert(e.message) }
   }
