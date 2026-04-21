@@ -31,7 +31,10 @@ const state = {
   autoLocated: false,
   activeTab: 'nearby',
   sheetOpen: true,
-  authMode: 'login'
+  authMode: 'login',
+  syncingNearby: false,
+  mapRefreshTimer: null,
+  hasInitialViewport: false
 }
 
 const app = document.querySelector('#app')
@@ -161,18 +164,27 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
-  state.map.on('zoomend moveend', async () => {
+  state.map.on('zoomend moveend', () => {
     renderMapOverlays()
-    if (state.token) {
-      const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-      const list = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
-      if (list && list.length) {
-        state.nearby = list
-        applyNearby1kmFilter()
-        renderSheet()
-        bindActions()
+
+    if (!state.token) return
+    if (state.mapRefreshTimer) clearTimeout(state.mapRefreshTimer)
+    state.mapRefreshTimer = setTimeout(async () => {
+      if (state.syncingNearby) return
+      state.syncingNearby = true
+      try {
+        const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+        const list = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
+        if (list && list.length) {
+          state.nearby = list
+          applyNearby1kmFilter()
+          renderSheet()
+          bindActions()
+        }
+      } finally {
+        state.syncingNearby = false
       }
-    }
+    }, 220)
   })
 }
 
@@ -241,7 +253,10 @@ function renderMapOverlays() {
   if (Number.isFinite(myLat) && Number.isFinite(myLng)) {
     const circleBounds = getMapCircleBounds(myLat, myLng, 1000)
     state.myCircle = window.L.circle([myLat, myLng], { radius: 1000, color: '#38bdf8', weight: 1.5, fillOpacity: 0 }).addTo(state.map)
-    state.map.fitBounds(circleBounds, { padding: [32, 32] })
+    if (!state.hasInitialViewport) {
+      state.map.fitBounds(circleBounds, { padding: [32, 32] })
+      state.hasInitialViewport = true
+    }
   }
 
   const clustered = clusterNearbyItems(state.nearby1km || [])
