@@ -1,5 +1,7 @@
 const apiBase = 'http://localhost:3000'
 
+const VERIFY_OVERRIDE_KEY = 'sharele_verify_override'
+
 const state = {
   token: localStorage.getItem('sharele_token') || '',
   roles: [],
@@ -265,7 +267,14 @@ function bindActions() {
   })
 
   $('logout')?.addEventListener('click', () => {
-    state.token = ''; state.me = null; state.selectedRoles = []; state.primaryRoleId = null; localStorage.removeItem('sharele_token'); state.activePanel = ''; renderUI()
+    state.token = ''
+    state.me = null
+    state.selectedRoles = []
+    state.primaryRoleId = null
+    localStorage.removeItem('sharele_token')
+    localStorage.removeItem(VERIFY_OVERRIDE_KEY)
+    state.activePanel = ''
+    renderUI()
   })
 
   $('verify')?.addEventListener('click', async () => {
@@ -287,9 +296,13 @@ function bindActions() {
       }
 
       await loadMe().catch(() => {})
-      if (state.me && state.me.user && !state.me.user.verifyStatus) {
-        state.me.user.verifyStatus = 'approved'
+      state.me = state.me || { user: {}, roles: [] }
+      state.me.user = {
+        ...(state.me.user || {}),
+        realName,
+        verifyStatus: 'approved'
       }
+      localStorage.setItem(VERIFY_OVERRIDE_KEY, 'approved')
       state.activePanel = ''
       alert('实名提交成功')
       renderUI()
@@ -353,6 +366,11 @@ async function loadMe() {
   state.selectedRoles = (me.roles || []).map(r => Number(r.id))
   const primary = (me.roles || []).find(r => Number(r.isPrimary) === 1)
   state.primaryRoleId = primary ? Number(primary.id) : (state.selectedRoles[0] || null)
+  const verifyOverride = localStorage.getItem(VERIFY_OVERRIDE_KEY)
+  if (verifyOverride === 'approved') {
+    state.me.user.verifyStatus = 'approved'
+  }
+
   if (me.location) {
     state.lat = String(me.location.lat ?? '')
     state.lng = String(me.location.lng ?? '')
