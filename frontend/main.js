@@ -246,16 +246,24 @@ function renderSheet() {
     `
   } else {
     content = `
-      <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料都放这里。</div></div></div>
+      <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料都收进这里。</div></div></div>
       ${state.token ? `
-        <div class="account-card">
-          <div class="account-main">
+        <div class="my-grid">
+          <div class="profile-hero">
             <div class="account-avatar">${meUser.avatarUrl ? `<img src="${meUser.avatarUrl}" alt="me" />` : `<span>${(meUser.nickname || '我').slice(0,1)}</span>`}</div>
-            <div><div class="nearby-name">${meUser.nickname || meUser.phone || '未登录用户'}</div><div class="small">实名状态：${meUser.verifyStatus || '未知'}</div></div>
+            <div class="profile-meta">
+              <div class="nearby-name">${meUser.nickname || meUser.phone || '未登录用户'}</div>
+              <div class="small">${meUser.bio || '还没有填写个人介绍'}</div>
+              <div class="profile-badges">
+                <span class="badge-pill">实名：${meUser.verifyStatus === 'approved' ? '已完成' : '未完成'}</span>
+                <span class="badge-pill">角色：${state.selectedRoles.length || 0} 个</span>
+              </div>
+            </div>
           </div>
-          <div class="account-actions">
+          <div class="quick-actions">
             <button class="ghost-btn" id="openVerify">实名认证</button>
             <button class="ghost-btn" id="openProfile">资料设置</button>
+            <button class="ghost-btn" id="geoLocateFromMy">重新定位</button>
             <button class="ghost-btn" id="logout">退出登录</button>
           </div>
         </div>
@@ -469,6 +477,8 @@ function bindActions() {
       renderUI()
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
   }
+
+  $('geoLocateFromMy')?.addEventListener('click', runGeoLocate)
 
   if (!state.autoLocated && navigator.geolocation) {
     state.autoLocated = true

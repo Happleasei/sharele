@@ -62,12 +62,17 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   z-index: 28;
   border-radius: 24px;
   border: 1px solid rgba(255,255,255,.14);
-  background: linear-gradient(180deg, rgba(10,14,22,.92), rgba(7,10,16,.86));
+  background: linear-gradient(180deg, rgba(10,14,22,.94), rgba(7,10,16,.88));
   backdrop-filter: blur(18px) saturate(120%);
   box-shadow: 0 22px 46px rgba(0,0,0,.35);
-  transition: transform .22s ease, opacity .22s ease;
+  transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .22s ease, box-shadow .22s ease;
 }
+.bottom-sheet.open { animation: sheetRise .26s cubic-bezier(.2,.8,.2,1); }
 .bottom-sheet:not(.open) { transform: translateX(-50%) translateY(calc(100% - 36px)); }
+@keyframes sheetRise {
+  from { transform: translateX(-50%) translateY(24px); opacity: .78; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
 .sheet-handle {
   width: 52px;
   height: 5px;
@@ -178,12 +183,15 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   align-items: center;
   gap: 4px;
   cursor: pointer;
+  transition: transform .18s ease, background .18s ease, color .18s ease;
 }
+.tab-btn:hover { transform: translateY(-2px); }
 .tab-btn em { font-style: normal; font-size: 12px; }
 .tab-btn.active {
   color: #fff;
   background: linear-gradient(145deg, rgba(14,165,233,.22), rgba(34,197,94,.18));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 10px 18px rgba(0,0,0,.18);
+  transform: translateY(-2px);
 }
 
 .avatar-pin {
@@ -192,7 +200,7 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   border-radius: 999px;
   overflow: hidden;
   border: 2px solid rgba(255,255,255,.9);
-  box-shadow: 0 12px 24px rgba(0,0,0,.36);
+  box-shadow: 0 12px 24px rgba(0,0,0,.36), 0 0 0 4px rgba(14,165,233,.14);
   background: #0f172a;
 }
 .avatar-pin img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -216,6 +224,28 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   color: #fff;
   cursor: pointer;
 }
+
+.my-grid { display:grid; gap:12px; }
+.profile-hero {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.1);
+  background: linear-gradient(145deg, rgba(15,23,42,.76), rgba(30,41,59,.54));
+}
+.profile-meta { display:grid; gap:4px; }
+.profile-badges { display:flex; gap:8px; flex-wrap:wrap; }
+.badge-pill {
+  border-radius:999px;
+  padding:5px 10px;
+  border:1px solid rgba(56,189,248,.35);
+  background: rgba(14,165,233,.12);
+  color:#dbeafe;
+  font-size:12px;
+}
+.quick-actions { display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
 
 @media (max-width: 768px) {
   .bottom-sheet { width: calc(100vw - 16px); bottom: 78px; }
