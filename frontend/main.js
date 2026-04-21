@@ -20,6 +20,7 @@ const state = {
   nearby1km: [],
   map: null,
   markers: [],
+  markerMap: {},
   myCircle: null,
   filterRoleCode: '',
   gpsStatus: '未定位',
@@ -179,6 +180,7 @@ function clearMapOverlays() {
   if (!state.map) return
   state.markers.forEach(m => state.map.removeLayer(m))
   state.markers = []
+  state.markerMap = {}
   if (state.myCircle) {
     state.map.removeLayer(state.myCircle)
     state.myCircle = null
@@ -273,6 +275,7 @@ function renderMapOverlays() {
     const marker = window.L.marker([lat, lng], { icon, riseOnHover: true }).addTo(state.map)
     marker.bindPopup(`
       <div class="popup-card">
+        <div class="popup-arrow"></div>
         <div class="popup-head">
           <div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>
           <div>
@@ -284,7 +287,16 @@ function renderMapOverlays() {
         <button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>
       </div>
     `)
+    marker.on('popupopen', () => {
+      const el = marker.getElement()
+      if (el) el.classList.add('pin-active')
+    })
+    marker.on('popupclose', () => {
+      const el = marker.getElement()
+      if (el) el.classList.remove('pin-active')
+    })
     state.markers.push(marker)
+    state.markerMap[String(item.id)] = marker
   })
   state.map.invalidateSize()
 }
@@ -315,7 +327,7 @@ function renderSheet() {
   if (state.activeTab === 'nearby') {
     content = `
       <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">地图是主角，列表只是辅助筛选。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
-      <div class="nearby-list">${state.nearby1km.map(item => `<div class="nearby-row"><div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.roleName || '未设置角色'} · ${(item.distanceKm || 0).toFixed(2)} km</div></div><button class="ghost-btn interact-inline" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}">互动</button></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>
+      <div class="nearby-list">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable" data-fly-id="${item.id}"><div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.roleName || '未设置角色'} · ${(item.distanceKm || 0).toFixed(2)} km</div></div><button class="ghost-btn interact-inline" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}">互动</button></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
     const pickedRoleCards = state.roles.filter(r => state.selectedRoles.includes(Number(r.id)))
@@ -537,6 +549,18 @@ function bindActions() {
     const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
     state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
     renderUI()
+  })
+
+  document.querySelectorAll('[data-fly-id]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target && e.target.closest('.interact-inline')) return
+      const id = String(row.getAttribute('data-fly-id') || '')
+      const marker = state.markerMap[id]
+      if (!marker || !state.map) return
+      const ll = marker.getLatLng()
+      state.map.flyTo(ll, Math.max(state.map.getZoom() || 13, 16), { duration: 0.6 })
+      setTimeout(() => marker.openPopup(), 380)
+    })
   })
 
   document.querySelectorAll('.interact-btn, .interact-inline').forEach(btn => {
