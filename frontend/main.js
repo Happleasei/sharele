@@ -495,11 +495,10 @@ function renderSheet() {
     `
   } else if (state.activeTab === 'roles') {
     content = `
-      <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">实名后直接选择角色即可，系统会按角色大类展示同类人群。</div></div></div>
+      <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">实名后直接从下拉框选择角色即可，系统按角色大类展示同类人群。</div></div></div>
       ${!state.token ? '<div class="warn-line">请先登录</div>' : ''}
       ${state.token && meUser.verifyStatus !== 'approved' ? '<div class="warn-line">请先在“我的”里完成实名认证</div>' : ''}
-      <div id="roleBoxes" class="role-grid"></div>
-      <div class="role-actions"><select id="primaryRole" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="primary-btn" ${canEditRoles ? '' : 'disabled'}>保存并显示</button></div>
+      <div class="role-actions single-role-actions"><select id="primaryRole" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">选择角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="primary-btn" ${canEditRoles ? '' : 'disabled'}>保存并显示</button></div>
     `
   } else {
     content = `
@@ -540,19 +539,7 @@ function renderSheet() {
   el.innerHTML = `<div class="sheet-handle" id="toggleSheet"></div><div class="sheet-content">${content}</div>`
 
   if (state.activeTab === 'roles') {
-    const box = document.getElementById('roleBoxes')
-    const canEdit = canEditRoles
-    if (box) {
-      box.innerHTML = state.roles.map(r => `<label class="role-card ${state.selectedRoles.includes(Number(r.id)) ? 'role-card-picked' : ''}"><input type="checkbox" value="${r.id}" ${state.selectedRoles.includes(Number(r.id)) ? 'checked' : ''} ${canEdit ? '' : 'disabled'} /><div><strong>${r.name}</strong><small>${r.category}</small></div></label>`).join('')
-      box.querySelectorAll('input[type="checkbox"]').forEach(elm => elm.addEventListener('change', () => {
-        const id = Number(elm.value)
-        if (elm.checked) {
-          if (!state.selectedRoles.includes(id)) state.selectedRoles.push(id)
-        } else {
-          state.selectedRoles = state.selectedRoles.filter(x => x !== id)
-        }
-      }))
-    }
+    // 角色页改为仅保留下拉选择，避免重复交互
   }
 }
 
@@ -697,9 +684,10 @@ function bindActions() {
   $('saveRoles')?.addEventListener('click', async () => {
     try {
       const primaryRoleId = Number($('primaryRole').value || 0) || null
-      if (!state.selectedRoles.length) return alert('请先选择至少一个角色')
+      if (!primaryRoleId) return alert('请先选择角色')
+      state.selectedRoles = [primaryRoleId]
       try {
-        const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: state.selectedRoles, primaryRoleId }) })
+        const ret = await request('/user/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roleIds: [primaryRoleId], primaryRoleId }) })
         state.primaryRoleId = ret.primaryRoleId
       } catch (_) {
         state.primaryRoleId = primaryRoleId || state.selectedRoles[0]
