@@ -11,6 +11,17 @@ const FALLBACK_ROLES = [
   { id: 7, code: 'hiker', name: '移动登山客', category: '兴趣' }
 ]
 
+const ROLE_FAMILY_MAP = {
+  photographer: 'image-service',
+  makeup: 'image-service',
+  model: 'image-service',
+  snack: 'food-service',
+  foodie: 'food-service',
+  cyclist: 'outdoor',
+  hiker: 'outdoor',
+  visitor: 'visitor'
+}
+
 const state = {
   token: localStorage.getItem('sharele_token') || '',
   roles: [],
@@ -93,12 +104,28 @@ function randomInRange(min, max) {
   return Math.random() * (max - min) + min
 }
 
+function resolveVisibleFamily() {
+  if (!state.token) return 'visitor'
+  const selected = (state.selectedRoles || []).map(id => state.roles.find(r => Number(r.id) === Number(id))).filter(Boolean)
+  const first = selected[0]
+  if (!first) return 'visitor'
+  return ROLE_FAMILY_MAP[first.code] || 'visitor'
+}
+
 function generateMockNearbyByRoles() {
   const myLat = Number(state.lat)
   const myLng = Number(state.lng)
   if (!Number.isFinite(myLat) || !Number.isFinite(myLng)) return []
-  const selected = (state.selectedRoles || []).map(id => state.roles.find(r => Number(r.id) === Number(id))).filter(Boolean)
-  const sourceRoles = selected.length ? selected : (state.roles && state.roles.length ? state.roles.slice(0, 4) : FALLBACK_ROLES.slice(0, 4))
+
+  const visibleFamily = resolveVisibleFamily()
+  let sourceRoles = []
+  if (visibleFamily === 'visitor') {
+    sourceRoles = [{ id: 999, code: 'visitor', name: '路人', category: '游客' }]
+  } else {
+    sourceRoles = (state.roles && state.roles.length ? state.roles : FALLBACK_ROLES)
+      .filter(role => ROLE_FAMILY_MAP[role.code] === visibleFamily)
+  }
+
   let idx = 1
   const out = []
   sourceRoles.forEach(role => {
@@ -110,7 +137,7 @@ function generateMockNearbyByRoles() {
         nickname: `${role.name}${i + 1}号`,
         roleCode: role.code,
         roleName: role.name,
-        bio: `我是${role.name}，可随时接单/互动。`,
+        bio: visibleFamily === 'visitor' ? '路人模式下，仅可浏览周边路人。' : `我是${role.name}，和你属于同一类人群。`,
         lat: Number(lat.toFixed(7)),
         lng: Number(lng.toFixed(7))
       })
