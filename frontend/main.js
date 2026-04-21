@@ -9,6 +9,7 @@ const state = {
   nearby1km: [],
   map: null,
   markers: [],
+  myCircle: null,
   filterRoleCode: '',
   gpsStatus: '未定位',
   lat: '',
@@ -237,6 +238,19 @@ function clearMarkers() {
   if (!state.map) return
   state.markers.forEach(m => state.map.removeLayer(m))
   state.markers = []
+  if (state.myCircle) {
+    state.map.removeLayer(state.myCircle)
+    state.myCircle = null
+  }
+}
+
+function getMapCircleBounds(lat, lng, radiusMeters = 1000) {
+  const dLat = radiusMeters / 111000
+  const dLng = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180) || 1)
+  return window.L.latLngBounds(
+    [lat - dLat, lng - dLng],
+    [lat + dLat, lng + dLng]
+  )
 }
 
 function renderMap() {
@@ -252,7 +266,25 @@ function renderMap() {
   }
 
   clearMarkers()
-  if (!state.nearby1km.length) return
+
+  const myLat = Number(state.lat)
+  const myLng = Number(state.lng)
+  let circleBounds = null
+  if (Number.isFinite(myLat) && Number.isFinite(myLng)) {
+    circleBounds = getMapCircleBounds(myLat, myLng, 1000)
+    state.myCircle = window.L.circle([myLat, myLng], {
+      radius: 1000,
+      color: '#38bdf8',
+      weight: 2,
+      fillColor: '#38bdf8',
+      fillOpacity: 0.1
+    }).addTo(state.map)
+  }
+
+  if (!state.nearby1km.length) {
+    if (circleBounds) state.map.fitBounds(circleBounds, { padding: [24, 24] })
+    return
+  }
 
   const points = []
   state.nearby1km.forEach(item => {
@@ -272,7 +304,9 @@ function renderMap() {
     state.markers.push(marker)
   })
 
-  if (points.length) {
+  if (circleBounds) {
+    state.map.fitBounds(circleBounds, { padding: [24, 24] })
+  } else if (points.length) {
     const bounds = window.L.latLngBounds(points)
     state.map.fitBounds(bounds.pad(0.2))
   }
