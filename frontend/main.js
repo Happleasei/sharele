@@ -6,6 +6,7 @@ const state = {
   selectedRoles: [],
   primaryRoleId: null,
   nearby: [],
+  nearby1km: [],
   map: null,
   markers: [],
   filterRoleCode: '',
@@ -121,6 +122,39 @@ function renderFloatingPanel() {
   return ''
 }
 
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const toRad = (d) => d * Math.PI / 180
+  const R = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+function applyNearby1kmFilter() {
+  const myLat = Number(state.lat)
+  const myLng = Number(state.lng)
+  if (!Number.isFinite(myLat) || !Number.isFinite(myLng)) {
+    state.nearby1km = [...state.nearby]
+    return
+  }
+
+  state.nearby1km = (state.nearby || [])
+    .map(item => {
+      const lat = Number(item.lat)
+      const lng = Number(item.lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      const distanceKmVal = distanceKm(myLat, myLng, lat, lng)
+      if (distanceKmVal > 1) return null
+      return { ...item, distanceKm: distanceKmVal }
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.distanceKm || 999) - (b.distanceKm || 999))
+}
+
 function render() {
   app.innerHTML = `
     <div class="map-page">
@@ -151,20 +185,24 @@ function render() {
       <div id="map" class="full-map"></div>
 
       <div class="bottom-overlay">
-        <div class="nearby-title">附近角色（${state.nearby.length}）</div>
+        <div class="nearby-title">附近 1km 角色（${state.nearby1km.length}）</div>
         <div class="nearby-scroll">
-          ${state.nearby.map(item => `
+          ${state.nearby1km.map(item => `
             <div class="nearby-item">
-              <div class="tag">${roleVisual(item.roleCode).emoji} ${item.roleName || '未设置角色'}</div>
-              <div>${item.nickname || `用户${item.id}`}</div>
+              <div class="nearby-top">
+                <div class="tag">${roleVisual(item.roleCode).emoji} ${item.roleName || '未设置角色'}</div>
+                <div class="distance-chip">${(item.distanceKm || 0).toFixed(2)} km</div>
+              </div>
+              <div class="nearby-name">${item.nickname || `用户${item.id}`}</div>
               <div class="small">${item.lat}, ${item.lng}</div>
             </div>
-          `).join('') || '<div class="small">暂无附近用户</div>'}
+          `).join('') || '<div class="small">暂无 1km 内用户</div>'}
         </div>
       </div>
     </div>
   `
 
+  applyNearby1kmFilter()
   bindActions()
   if (state.activePanel === 'roles') renderRoleChecks()
   renderMap()
@@ -214,10 +252,10 @@ function renderMap() {
   }
 
   clearMarkers()
-  if (!state.nearby.length) return
+  if (!state.nearby1km.length) return
 
   const points = []
-  state.nearby.forEach(item => {
+  state.nearby1km.forEach(item => {
     const lat = Number(item.lat)
     const lng = Number(item.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
