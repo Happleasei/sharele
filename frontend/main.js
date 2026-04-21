@@ -190,9 +190,16 @@ function renderMapOverlays() {
     const lng = Number(item.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     const visual = roleVisual(item.roleCode)
-    const icon = window.L.divIcon({ className: '', html: `<div class="role-pin ${visual.cls}">${visual.emoji}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] })
+    const avatarUrl = item.avatarUrl || ''
+    const name = item.nickname || `用户${item.id}`
+    const icon = window.L.divIcon({
+      className: '',
+      html: `<div class="avatar-pin">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>`,
+      iconSize: [42, 42],
+      iconAnchor: [21, 21]
+    })
     const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
-    marker.bindPopup(`<b>${item.nickname || `用户${item.id}`}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}`)
+    marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-target="${name}">发起互动</button>`)
     state.markers.push(marker)
   })
 
@@ -208,6 +215,7 @@ function renderTopOverlay() {
     <div class="top-actions">
       <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
       <button class="mini-btn" id="toggleVerify">实名</button>
+      <button class="mini-btn" id="toggleProfile">资料</button>
       <button class="mini-btn" id="toggleRoles">角色</button>
       <button class="mini-btn" id="geoLocate">定位</button>
       <button class="mini-btn" id="loadNearby">刷新</button>
@@ -234,6 +242,12 @@ function renderPanel() {
   if (state.activePanel === 'auth') {
     el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">${state.token ? '账户信息' : '登录 / 注册'}</div><button class="mini-btn" id="closePanel">关闭</button></div>
     ${state.token ? `<div class="panel-row"><div class="panel-note">当前：${state.me ? (state.me.user.nickname || state.me.user.phone) : '已登录'}</div><div class="panel-note">实名状态：${state.me ? state.me.user.verifyStatus : '未知'}</div><button id="logout" class="btn sec">退出登录</button></div>` : `<div class="panel-tabs"><button class="mini-btn ${state.authMode === 'login' ? 'active' : ''}" id="tabLogin">登录</button><button class="mini-btn ${state.authMode === 'register' ? 'active' : ''}" id="tabRegister">注册</button></div><div class="panel-row"><input id="phone" class="input" placeholder="手机号" /><input id="password" class="input" placeholder="密码" type="password" />${state.authMode === 'register' ? '<input id="nickname" class="input" placeholder="昵称（注册可填）" />' : ''}<button id="submitAuth" class="btn">${state.authMode === 'login' ? '登录' : '注册'}</button></div>`}</div>`
+    return
+  }
+
+  if (state.activePanel === 'profile') {
+    const meUser = (state.me && state.me.user) || {}
+    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">个人资料</div><button class="mini-btn" id="closePanel">关闭</button></div><div class="panel-row"><input id="pNickname" class="input" placeholder="昵称" value="${meUser.nickname || ''}" /><input id="pAvatar" class="input" placeholder="头像URL（http/https）" value="${meUser.avatarUrl || ''}" /><input id="pBio" class="input" placeholder="一句话介绍" value="${meUser.bio || ''}" /><select id="pGender" class="select"><option value="">性别(可选)</option><option value="male" ${meUser.gender==='male'?'selected':''}>男</option><option value="female" ${meUser.gender==='female'?'selected':''}>女</option></select><button id="saveProfile" class="btn">保存资料</button></div></div>`
     return
   }
 
@@ -283,6 +297,7 @@ function bindActions() {
   const $ = (id) => document.getElementById(id)
   $('toggleAuth')?.addEventListener('click', () => togglePanel('auth'))
   $('toggleVerify')?.addEventListener('click', () => togglePanel('verify'))
+  $('toggleProfile')?.addEventListener('click', () => togglePanel('profile'))
   $('toggleRoles')?.addEventListener('click', () => togglePanel('roles'))
   $('closePanel')?.addEventListener('click', () => { state.activePanel = ''; renderUI() })
   $('tabLogin')?.addEventListener('click', () => { state.authMode = 'login'; renderUI() })
@@ -350,6 +365,22 @@ function bindActions() {
     } catch (e) { alert(e.message) }
   })
 
+  $('saveProfile')?.addEventListener('click', async () => {
+    try {
+      const payload = {
+        nickname: String($('pNickname')?.value || '').trim(),
+        avatarUrl: String($('pAvatar')?.value || '').trim(),
+        bio: String($('pBio')?.value || '').trim(),
+        gender: String($('pGender')?.value || '').trim()
+      }
+      await request('/user/profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) })
+      await loadMe()
+      alert('资料已更新')
+      state.activePanel = ''
+      renderUI()
+    } catch (e) { alert(e.message) }
+  })
+
   $('saveRoles')?.addEventListener('click', async () => {
     try {
       const primaryRoleId = Number($('primaryRole').value || 0) || null
@@ -409,6 +440,13 @@ function bindActions() {
   })
 
   $('filterRole')?.addEventListener('change', (e) => { state.filterRoleCode = e.target.value })
+
+  document.querySelectorAll('.interact-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget.getAttribute('data-target') || 'TA'
+      alert(`已向 ${target} 发起互动（演示功能）`)
+    })
+  })
 }
 
 async function loadMe() {

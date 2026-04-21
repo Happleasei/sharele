@@ -12,6 +12,12 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+async function ensureSchema() {
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255) NULL")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255) NULL")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(16) NULL")
+}
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1')
@@ -95,7 +101,8 @@ app.post('/user/location', authRequired, async (req, res) => {
 
 app.get('/user/me', authRequired, async (req, res) => {
   const [users] = await pool.query(
-    `SELECT id, phone, nickname, real_name realName, verify_status verifyStatus
+    `SELECT id, phone, nickname, real_name realName, verify_status verifyStatus,
+            avatar_url avatarUrl, bio, gender
      FROM users WHERE id=? LIMIT 1`,
     [req.user.uid]
   )
@@ -119,10 +126,25 @@ app.get('/user/me', authRequired, async (req, res) => {
   res.json({ user, roles, location: locations[0] || null })
 })
 
+app.put('/user/profile', authRequired, async (req, res) => {
+  const body = req.body || {}
+  const nickname = String(body.nickname ?? '').trim() || null
+  const avatarUrl = String(body.avatarUrl ?? body.avatar_url ?? '').trim() || null
+  const bio = String(body.bio ?? '').trim() || null
+  const gender = String(body.gender ?? '').trim() || null
+
+  await pool.query(
+    'UPDATE users SET nickname=?, avatar_url=?, bio=?, gender=? WHERE id=?',
+    [nickname, avatarUrl, bio, gender, req.user.uid]
+  )
+  res.json({ ok: true })
+})
+
 app.get('/map/nearby', authRequired, async (req, res) => {
   const { roleCode } = req.query
   const [rows] = await pool.query(
-    `SELECT u.id, u.nickname, r.code roleCode, r.name roleName, ul.lat, ul.lng, ul.updated_at
+    `SELECT u.id, u.nickname, u.avatar_url avatarUrl, u.bio, u.gender,
+            r.code roleCode, r.name roleName, ul.lat, ul.lng, ul.updated_at
      FROM user_locations ul
      JOIN users u ON u.id = ul.user_id
      LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_primary = 1
@@ -136,4 +158,11 @@ app.get('/map/nearby', authRequired, async (req, res) => {
 })
 
 const port = Number(process.env.PORT || 3000)
-app.listen(port, () => console.log(`sharele backend running at http://localhost:${port}`))
+ensureSchema()
+  .then(() => {
+    app.listen(port, () => console.log(`sharele backend running at http://localhost:${port}`))
+  })
+  .catch((err) => {
+    console.error('schema init failed', err)
+    process.exit(1)
+  })
