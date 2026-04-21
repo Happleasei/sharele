@@ -266,11 +266,53 @@ function renderMap() {
 
   if (!state.map) {
     state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
-    window.L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      minZoom: 3,
-      attribution: 'Tiles &copy; Esri'
-    }).addTo(state.map)
+    const baseLayers = [
+      {
+        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        options: {
+          subdomains: 'abcd',
+          maxZoom: 19,
+          minZoom: 3,
+          attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }
+      },
+      {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options: {
+          subdomains: ['a', 'b', 'c'],
+          maxZoom: 19,
+          minZoom: 3,
+          attribution: '&copy; OpenStreetMap'
+        }
+      },
+      {
+        url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        options: {
+          subdomains: ['a', 'b', 'c'],
+          maxZoom: 17,
+          minZoom: 3,
+          attribution: '&copy; OpenTopoMap'
+        }
+      }
+    ]
+
+    let layerIndex = 0
+    const loadBaseLayer = () => {
+      const conf = baseLayers[layerIndex]
+      if (!conf) return
+      const layer = window.L.tileLayer(conf.url, conf.options)
+      let switched = false
+      layer.on('tileerror', () => {
+        if (switched) return
+        switched = true
+        state.map.removeLayer(layer)
+        layerIndex += 1
+        loadBaseLayer()
+      })
+      layer.addTo(state.map)
+    }
+
+    loadBaseLayer()
   }
 
   clearMarkers()
