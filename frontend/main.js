@@ -356,7 +356,7 @@ function renderMapOverlays() {
       marker.on('click', () => {
         const info = new window.AMap.InfoWindow({
           offset: new window.AMap.Pixel(0, -28),
-          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div><div><div class="popup-name">${name}</div><div class="popup-role">${item.roleName || '未设置角色'}</div></div></div><div class="popup-bio">${item.bio || '这个人很神秘，还没写简介。'}</div></div>`
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div><div><div class="popup-name">${name}</div><div class="popup-role">${item.roleName || '未设置角色'}</div></div></div><div class="popup-bio">${item.bio || '这个人很神秘，还没写简介。'}</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
         })
         info.open(state.map, [lng, lat])
       })
@@ -416,7 +416,7 @@ function renderMapOverlays() {
           </div>
         </div>
         <div class="popup-bio">${item.bio || '这个人很神秘，还没写简介。'}</div>
-        <button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>
+        <button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button>
       </div>
     `)
     marker.on('popupopen', () => {
@@ -454,20 +454,22 @@ function renderSheet() {
   const el = document.getElementById('sheet')
   if (!el) return
   const meUser = (state.me && state.me.user) || {}
-  const canEditRoles = Boolean(state.token && meUser.verifyStatus === 'approved')
+  const canEditRoles = Boolean(state.token)
+  const canInteract = Boolean(state.token && meUser.verifyStatus === 'approved')
+  state.canInteract = canInteract
 
   let content = ''
   if (state.activeTab === 'nearby') {
     content = `
       <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">地图是主角，列表只是辅助筛选。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
-      <div class="nearby-list">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable" data-fly-id="${item.id}"><div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.roleName || '未设置角色'} · ${(item.distanceKm || 0).toFixed(2)} km</div></div><button class="ghost-btn interact-inline" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}">互动</button></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>
+      <div class="nearby-list">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable" data-fly-id="${item.id}"><div><div class="nearby-name">${item.nickname || `用户${item.id}`}</div><div class="small">${item.roleName || '未设置角色'} · ${(item.distanceKm || 0).toFixed(2)} km</div></div><button class="ghost-btn interact-inline" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '互动' : '仅可查看'}</button></div>`).join('') || '<div class="small">暂无 1km 内用户</div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
     const pickedRoleCards = state.roles.filter(r => state.selectedRoles.includes(Number(r.id)))
     content = `
       <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">先挑你想展示的身份，再保存到地图。</div></div></div>
-      ${!state.token ? '<div class="warn-line">请先登录</div>' : ''}
-      ${state.token && !canEditRoles ? '<div class="warn-line">请先在“我的”里完成实名认证</div>' : ''}
+      ${!state.token ? '<div class="warn-line">路人模式：可浏览，不可保存角色</div>' : ''}
+      ${state.token && meUser.verifyStatus !== 'approved' ? '<div class="warn-line">未实名：可选角色、可浏览，但不能互动</div>' : ''}
       <div class="role-actions"><select id="rolePicker" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">添加一个角色</option>${state.roles.filter(r => !state.selectedRoles.includes(Number(r.id))).map(r => `<option value="${r.id}">${r.name}</option>`).join('')}</select><button id="addRole" class="ghost-btn" ${canEditRoles ? '' : 'disabled'}>添加</button></div>
       <div id="roleBoxes" class="role-grid">${pickedRoleCards.map(r => `<label class="role-card role-card-picked"><div><strong>${r.name}</strong><small>${r.category}</small></div><input type="checkbox" value="${r.id}" checked ${canEditRoles ? '' : 'disabled'} /></label>`).join('') || '<div class="small">暂未添加角色</div>'}</div>
       <div class="role-actions"><select id="primaryRole" class="sheet-select" ${canEditRoles ? '' : 'disabled'}><option value="">选择主角色</option>${state.roles.map(r => `<option value="${r.id}" ${Number(state.primaryRoleId)===Number(r.id)?'selected':''}>${r.name}</option>`).join('')}</select><button id="saveRoles" class="primary-btn" ${canEditRoles ? '' : 'disabled'}>保存并显示</button></div>
@@ -710,7 +712,10 @@ function bindActions() {
     btn.addEventListener('click', async (e) => {
       const target = e.currentTarget.getAttribute('data-target') || 'TA'
       const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
-      if (!state.token) return alert('请先登录再互动')
+      if (!state.token) return alert('路人模式只能查看，登录后才能进一步操作')
+      if (!(state.me && state.me.user && state.me.user.verifyStatus === 'approved')) {
+        return alert('未实名只能查看，完成实名认证后才可互动')
+      }
       const message = window.prompt(`给 ${target} 留一句话（可选）`, '你好，想认识一下') || ''
       try {
         await request('/interactions', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ toUserId, message }) })
