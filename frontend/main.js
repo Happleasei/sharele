@@ -244,7 +244,7 @@ function renderTopOverlay() {
       </select>
     </div>
     <div class="top-actions">
-      <button class="menu-btn" id="toggleMenu">☰</button>
+      <button class="menu-btn" id="toggleMenu">☰ 菜单</button>
       ${state.menuOpen ? `
         <div class="menu-pop menu-pop-open">
           <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
@@ -327,23 +327,45 @@ function togglePanel(panel) {
 
 function bindActions() {
   const $ = (id) => document.getElementById(id)
-  $('toggleMenu')?.addEventListener('click', () => {
-    state.menuOpen = !state.menuOpen
-    renderUI()
+
+  const jellyThen = (el, next, delay = 200) => {
+    if (!el) return next()
+    el.classList.add('jelly-active')
+    setTimeout(() => {
+      el.classList.remove('jelly-active')
+      next()
+    }, delay)
+  }
+
+  $('toggleMenu')?.addEventListener('click', (e) => {
+    const el = e.currentTarget
+    jellyThen(el, () => {
+      state.menuOpen = !state.menuOpen
+      renderUI()
+    }, 150)
   })
-  $('toggleAuth')?.addEventListener('click', () => {
-    state.menuOpen = false
-    togglePanel('auth')
+
+  $('toggleAuth')?.addEventListener('click', (e) => {
+    jellyThen(e.currentTarget, () => {
+      state.menuOpen = false
+      togglePanel('auth')
+    })
   })
-  $('toggleRoles')?.addEventListener('click', () => {
-    state.menuOpen = false
-    togglePanel('roles')
+
+  $('toggleRoles')?.addEventListener('click', (e) => {
+    jellyThen(e.currentTarget, () => {
+      state.menuOpen = false
+      togglePanel('roles')
+    })
   })
-  $('toggleInteractions')?.addEventListener('click', async () => {
-    if (!state.token) return alert('请先登录')
-    state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
-    state.menuOpen = false
-    togglePanel('interactions')
+
+  $('toggleInteractions')?.addEventListener('click', async (e) => {
+    jellyThen(e.currentTarget, async () => {
+      if (!state.token) return alert('请先登录')
+      state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
+      state.menuOpen = false
+      togglePanel('interactions')
+    })
   })
   $('closePanel')?.addEventListener('click', () => { state.activePanel = ''; renderUI() })
   $('openVerifyFromAccount')?.addEventListener('click', () => { state.activePanel = 'verify'; renderUI() })
@@ -472,19 +494,23 @@ function bindActions() {
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
   }
 
-  $('geoLocate')?.addEventListener('click', runGeoLocate)
+  $('geoLocate')?.addEventListener('click', (e) => {
+    jellyThen(e.currentTarget, runGeoLocate)
+  })
 
-  $('loadNearby')?.addEventListener('click', async () => {
-    try {
-      const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-      const list = await request(`/map/nearby${query}`, { headers: authHeaders() })
-      state.nearby = (list && list.length) ? list : generateMockNearbyByRoles()
-      renderUI()
-    } catch (_e) {
-      state.nearby = generateMockNearbyByRoles()
-      renderUI()
-      alert('已切换为本地假数据预览')
-    }
+  $('loadNearby')?.addEventListener('click', async (e) => {
+    jellyThen(e.currentTarget, async () => {
+      try {
+        const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+        const list = await request(`/map/nearby${query}`, { headers: authHeaders() })
+        state.nearby = (list && list.length) ? list : generateMockNearbyByRoles()
+        renderUI()
+      } catch (_e) {
+        state.nearby = generateMockNearbyByRoles()
+        renderUI()
+        alert('已切换为本地假数据预览')
+      }
+    })
   })
 
   $('filterRole')?.addEventListener('change', (e) => { state.filterRoleCode = e.target.value })
