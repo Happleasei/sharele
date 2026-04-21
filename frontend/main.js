@@ -30,7 +30,9 @@ const state = {
   authMode: 'login',
   autoLocated: false,
   interactions: [],
-  menuOpen: false
+  menuOpen: false,
+  topCompact: false,
+  compactTimer: null
 }
 
 const app = document.querySelector('#app')
@@ -138,6 +140,18 @@ function mountShell() {
   `
 }
 
+function setTopCompact(compact) {
+  state.topCompact = compact
+  renderTopOverlay()
+  bindActions()
+}
+
+function pulseTopCompact() {
+  setTopCompact(true)
+  if (state.compactTimer) clearTimeout(state.compactTimer)
+  state.compactTimer = setTimeout(() => setTopCompact(false), 800)
+}
+
 function initMap() {
   if (state.map) return
   state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
@@ -164,6 +178,12 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
+
+  state.map.on('movestart zoomstart', () => setTopCompact(true))
+  state.map.on('moveend zoomend', () => {
+    if (state.compactTimer) clearTimeout(state.compactTimer)
+    state.compactTimer = setTimeout(() => setTopCompact(false), 350)
+  })
 }
 
 function clearMapOverlays() {
@@ -212,6 +232,7 @@ function renderMapOverlays() {
 function renderTopOverlay() {
   const el = document.getElementById('topOverlay')
   if (!el) return
+  el.className = `top-overlay ${state.topCompact ? 'compact' : ''}`
   el.innerHTML = `
     <div class="logo-block"><div class="brand">sharele</div><div class="sub">移动职业/兴趣角色地图</div></div>
     <div class="status-line">
@@ -225,7 +246,7 @@ function renderTopOverlay() {
     <div class="top-actions">
       <button class="menu-btn" id="toggleMenu">☰</button>
       ${state.menuOpen ? `
-        <div class="menu-pop">
+        <div class="menu-pop menu-pop-open">
           <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
           <button class="mini-btn" id="toggleRoles">角色</button>
           <button class="mini-btn" id="toggleInteractions">互动</button>
@@ -507,6 +528,10 @@ async function loadMe() {
     state.lng = String(me.location.lng ?? '')
   }
 }
+
+window.addEventListener('wheel', () => {
+  pulseTopCompact()
+}, { passive: true })
 
 async function bootstrap() {
   mountShell()
