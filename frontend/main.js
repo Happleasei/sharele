@@ -28,7 +28,8 @@ const state = {
   me: null,
   activePanel: '',
   authMode: 'login',
-  autoLocated: false
+  autoLocated: false,
+  interactions: []
 }
 
 const app = document.querySelector('#app')
@@ -199,7 +200,7 @@ function renderMapOverlays() {
       iconAnchor: [21, 21]
     })
     const marker = window.L.marker([lat, lng], { icon }).addTo(state.map)
-    marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-target="${name}">发起互动</button>`)
+    marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>`)
     state.markers.push(marker)
   })
 
@@ -217,6 +218,7 @@ function renderTopOverlay() {
       <button class="mini-btn" id="toggleVerify">实名</button>
       <button class="mini-btn" id="toggleProfile">资料</button>
       <button class="mini-btn" id="toggleRoles">角色</button>
+      <button class="mini-btn" id="toggleInteractions">互动</button>
       <button class="mini-btn" id="geoLocate">定位</button>
       <button class="mini-btn" id="loadNearby">刷新</button>
     </div>
@@ -248,6 +250,11 @@ function renderPanel() {
   if (state.activePanel === 'profile') {
     const meUser = (state.me && state.me.user) || {}
     el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">个人资料</div><button class="mini-btn" id="closePanel">关闭</button></div><div class="panel-row"><input id="pNickname" class="input" placeholder="昵称" value="${meUser.nickname || ''}" /><input id="pAvatar" class="input" placeholder="头像URL（http/https）" value="${meUser.avatarUrl || ''}" /><input id="pBio" class="input" placeholder="一句话介绍" value="${meUser.bio || ''}" /><select id="pGender" class="select"><option value="">性别(可选)</option><option value="male" ${meUser.gender==='male'?'selected':''}>男</option><option value="female" ${meUser.gender==='female'?'selected':''}>女</option></select><button id="saveProfile" class="btn">保存资料</button></div></div>`
+    return
+  }
+
+  if (state.activePanel === 'interactions') {
+    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">互动记录</div><button class="mini-btn" id="closePanel">关闭</button></div><div class="panel-row" style="display:block">${(state.interactions || []).map(it => `<div class="interaction-item"><div><b>${it.fromNickname || ('用户'+it.fromUserId)}</b> → <b>${it.toNickname || ('用户'+it.toUserId)}</b></div><div class="small">${it.message || '（无附言）'} · ${it.status}</div></div>`).join('') || '<div class="small">暂无互动记录</div>'}</div></div>`
     return
   }
 
@@ -299,6 +306,11 @@ function bindActions() {
   $('toggleVerify')?.addEventListener('click', () => togglePanel('verify'))
   $('toggleProfile')?.addEventListener('click', () => togglePanel('profile'))
   $('toggleRoles')?.addEventListener('click', () => togglePanel('roles'))
+  $('toggleInteractions')?.addEventListener('click', async () => {
+    if (!state.token) return alert('请先登录')
+    state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
+    togglePanel('interactions')
+  })
   $('closePanel')?.addEventListener('click', () => { state.activePanel = ''; renderUI() })
   $('tabLogin')?.addEventListener('click', () => { state.authMode = 'login'; renderUI() })
   $('tabRegister')?.addEventListener('click', () => { state.authMode = 'register'; renderUI() })
@@ -442,9 +454,22 @@ function bindActions() {
   $('filterRole')?.addEventListener('change', (e) => { state.filterRoleCode = e.target.value })
 
   document.querySelectorAll('.interact-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const target = e.currentTarget.getAttribute('data-target') || 'TA'
-      alert(`已向 ${target} 发起互动（演示功能）`)
+      const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
+      if (!state.token) return alert('请先登录再互动')
+
+      const message = window.prompt(`给 ${target} 留一句话（可选）`, '你好，想认识一下') || ''
+      try {
+        await request('/interactions', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ toUserId, message })
+        })
+        alert(`已向 ${target} 发起互动`)
+      } catch (err) {
+        alert(err.message || '互动发送失败')
+      }
     })
   })
 }

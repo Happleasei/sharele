@@ -16,6 +16,16 @@ async function ensureSchema() {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255) NULL")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255) NULL")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(16) NULL")
+  await pool.query(`CREATE TABLE IF NOT EXISTS interactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    from_user_id BIGINT NOT NULL,
+    to_user_id BIGINT NOT NULL,
+    message VARCHAR(255) NULL,
+    status ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_to_created (to_user_id, created_at),
+    KEY idx_from_created (from_user_id, created_at)
+  ) ENGINE=InnoDB`)
 }
 
 app.get('/health', async (_req, res) => {
@@ -138,6 +148,34 @@ app.put('/user/profile', authRequired, async (req, res) => {
     [nickname, avatarUrl, bio, gender, req.user.uid]
   )
   res.json({ ok: true })
+})
+
+app.post('/interactions', authRequired, async (req, res) => {
+  const { toUserId, message } = req.body || {}
+  const toId = Number(toUserId)
+  if (!Number.isFinite(toId) || toId <= 0) return res.status(400).json({ message: 'toUserId 无效' })
+  if (toId === Number(req.user.uid)) return res.status(400).json({ message: '不能向自己发起互动' })
+
+  await pool.query(
+    'INSERT INTO interactions (from_user_id, to_user_id, message) VALUES (?, ?, ?)',
+    [req.user.uid, toId, String(message || '').trim() || null]
+  )
+  res.json({ ok: true })
+})
+
+app.get('/interactions/my', authRequired, async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT i.id, i.from_user_id fromUserId, i.to_user_id toUserId, i.message, i.status, i.created_at createdAt,
+            uf.nickname fromNickname, ut.nickname toNickname
+     FROM interactions i
+     LEFT JOIN users uf ON uf.id = i.from_user_id
+     LEFT JOIN users ut ON ut.id = i.to_user_id
+     WHERE i.from_user_id=? OR i.to_user_id=?
+     ORDER BY i.created_at DESC
+     LIMIT 100`,
+    [req.user.uid, req.user.uid]
+  )
+  res.json(rows)
 })
 
 app.get('/map/nearby', authRequired, async (req, res) => {
