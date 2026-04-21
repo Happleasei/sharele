@@ -19,6 +19,7 @@ const state = {
   nearby: [],
   nearby1km: [],
   map: null,
+  mapEngine: 'leaflet',
   markers: [],
   markerMap: {},
   myCircle: null,
@@ -82,6 +83,12 @@ function getMapCircleBounds(lat, lng, radiusMeters = 1000) {
   return window.L.latLngBounds([lat - dLat, lng - dLng], [lat + dLat, lng + dLng])
 }
 
+function getAmapBounds(lat, lng, radiusMeters = 1000) {
+  const dLat = radiusMeters / 111000
+  const dLng = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180) || 1)
+  return new window.AMap.Bounds([lng - dLng, lat - dLat], [lng + dLng, lat + dLat])
+}
+
 function randomInRange(min, max) {
   return Math.random() * (max - min) + min
 }
@@ -142,8 +149,8 @@ function mountShell() {
   `
 }
 
-function initMap() {
-  if (state.map) return
+function initLeafletMap() {
+  state.mapEngine = 'leaflet'
   state.map = window.L.map('map', { zoomControl: false }).setView([30.2741, 120.1551], 13)
   const layers = [
     { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', options: { subdomains: ['a', 'b', 'c'], maxZoom: 19, minZoom: 3, attribution: '&copy; OpenStreetMap' } },
@@ -153,65 +160,30 @@ function initMap() {
   const addFallbackGrid = () => {
     state.mapStatus = '已切换本地网格底图'
     renderTopBar()
-    window.L.gridLayer({
-      attribution: 'sharele fallback grid'
-    }).createTile = function(coords) {
+    window.L.gridLayer({ attribution: 'sharele fallback grid' }).createTile = function(coords) {
       const tile = document.createElement('canvas')
       const size = this.getTileSize()
       tile.width = size.x
       tile.height = size.y
       const ctx = tile.getContext('2d')
-
       const bg = ctx.createLinearGradient(0, 0, size.x, size.y)
       bg.addColorStop(0, '#edf4fb')
       bg.addColorStop(1, '#d9e8f6')
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, size.x, size.y)
-
       ctx.strokeStyle = 'rgba(71, 85, 105, 0.28)'
       ctx.lineWidth = 1
       ctx.strokeRect(0, 0, size.x, size.y)
-
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.16)'
-      ctx.lineWidth = 1
-      for (let i = 64; i < size.x; i += 64) {
-        ctx.beginPath()
-        ctx.moveTo(i, 0)
-        ctx.lineTo(i, size.y)
-        ctx.stroke()
-      }
-      for (let i = 64; i < size.y; i += 64) {
-        ctx.beginPath()
-        ctx.moveTo(0, i)
-        ctx.lineTo(size.x, i)
-        ctx.stroke()
-      }
-
-      ctx.strokeStyle = 'rgba(14, 165, 233, 0.22)'
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.moveTo(size.x / 2, 0)
-      ctx.lineTo(size.x / 2, size.y)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(0, size.y / 2)
-      ctx.lineTo(size.x, size.y / 2)
-      ctx.stroke()
-
       ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'
       ctx.font = '12px sans-serif'
       ctx.fillText(`sharele fallback map`, 12, 22)
       ctx.fillText(`z${coords.z} · x${coords.x} · y${coords.y}`, 12, 42)
       return tile
-    }
-    .addTo(state.map)
+    }.addTo(state.map)
   }
   const load = () => {
     const conf = layers[idx]
-    if (!conf) {
-      addFallbackGrid()
-      return
-    }
+    if (!conf) return addFallbackGrid()
     const layer = window.L.tileLayer(conf.url, conf.options)
     state.mapStatus = '地图底图加载中'
     renderTopBar()
@@ -230,32 +202,68 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
-  state.map.on('zoomend moveend', () => {
-    renderMapOverlays()
+  state.map.on('zoomend moveend', handleMapViewportChange)
+}
 
-    if (!state.token) return
-    if (state.mapRefreshTimer) clearTimeout(state.mapRefreshTimer)
-    state.mapRefreshTimer = setTimeout(async () => {
-      if (state.syncingNearby) return
-      state.syncingNearby = true
-      try {
-        const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-        const list = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
-        if (list && list.length) {
-          state.nearby = list
-          applyNearby1kmFilter()
-          renderSheet()
-          bindActions()
-        }
-      } finally {
-        state.syncingNearby = false
-      }
-    }, 220)
+function initAmap() {
+  state.mapEngine = 'amap'
+  state.map = new window.AMap.Map('map', {
+    zoom: 13,
+    center: [120.1551, 30.2741],
+    viewMode: '2D',
+    mapStyle: 'amap://styles/normal'
   })
+  state.mapStatus = '高德地图已加载'
+  renderTopBar()
+  state.map.on('zoomend', handleMapViewportChange)
+  state.map.on('moveend', handleMapViewportChange)
+}
+
+function initMap() {
+  if (state.map) return
+  try {
+    if (window.AMap && typeof window.AMap.Map === 'function') {
+      initAmap()
+      return
+    }
+  } catch {}
+  initLeafletMap()
+}
+
+function handleMapViewportChange() {
+  renderMapOverlays()
+  if (!state.token) return
+  if (state.mapRefreshTimer) clearTimeout(state.mapRefreshTimer)
+  state.mapRefreshTimer = setTimeout(async () => {
+    if (state.syncingNearby) return
+    state.syncingNearby = true
+    try {
+      const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+      const list = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
+      if (list && list.length) {
+        state.nearby = list
+        applyNearby1kmFilter()
+        renderSheet()
+        bindActions()
+      }
+    } finally {
+      state.syncingNearby = false
+    }
+  }, 220)
 }
 
 function clearMapOverlays() {
   if (!state.map) return
+  if (state.mapEngine === 'amap') {
+    state.markers.forEach(m => state.map.remove(m))
+    state.markers = []
+    state.markerMap = {}
+    if (state.myCircle) {
+      state.map.remove(state.myCircle)
+      state.myCircle = null
+    }
+    return
+  }
   state.markers.forEach(m => state.map.removeLayer(m))
   state.markers = []
   state.markerMap = {}
@@ -316,6 +324,49 @@ function renderMapOverlays() {
   clearMapOverlays()
   const myLat = Number(state.lat)
   const myLng = Number(state.lng)
+
+  if (state.mapEngine === 'amap') {
+    if (Number.isFinite(myLat) && Number.isFinite(myLng)) {
+      const bounds = getAmapBounds(myLat, myLng, 1000)
+      state.myCircle = new window.AMap.Circle({
+        center: [myLng, myLat],
+        radius: 1000,
+        strokeColor: '#38bdf8',
+        strokeWeight: 2,
+        fillOpacity: 0
+      })
+      state.map.add(state.myCircle)
+      if (!state.hasInitialViewport) {
+        state.map.setBounds(bounds)
+        state.hasInitialViewport = true
+      }
+    }
+
+    ;(state.nearby1km || []).forEach(item => {
+      const lat = Number(item.lat)
+      const lng = Number(item.lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+      const name = item.nickname || `用户${item.id}`
+      const avatarUrl = item.avatarUrl || ''
+      const marker = new window.AMap.Marker({
+        position: [lng, lat],
+        offset: new window.AMap.Pixel(-22, -22),
+        content: `<div class="avatar-pin">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>`
+      })
+      marker.on('click', () => {
+        const info = new window.AMap.InfoWindow({
+          offset: new window.AMap.Pixel(0, -28),
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div><div><div class="popup-name">${name}</div><div class="popup-role">${item.roleName || '未设置角色'}</div></div></div><div class="popup-bio">${item.bio || '这个人很神秘，还没写简介。'}</div></div>`
+        })
+        info.open(state.map, [lng, lat])
+      })
+      state.map.add(marker)
+      state.markers.push(marker)
+      state.markerMap[String(item.id)] = marker
+    })
+    return
+  }
+
   if (Number.isFinite(myLat) && Number.isFinite(myLng)) {
     const circleBounds = getMapCircleBounds(myLat, myLng, 1000)
     state.myCircle = window.L.circle([myLat, myLng], { radius: 1000, color: '#38bdf8', weight: 1.5, fillOpacity: 0 }).addTo(state.map)
@@ -639,6 +690,12 @@ function bindActions() {
       const id = String(row.getAttribute('data-fly-id') || '')
       const marker = state.markerMap[id]
       if (!marker || !state.map) return
+      if (state.mapEngine === 'amap') {
+        const pos = marker.getPosition()
+        state.map.setZoomAndCenter(Math.max(state.map.getZoom() || 13, 16), pos)
+        window.AMap.event.trigger(marker, 'click')
+        return
+      }
       const ll = marker.getLatLng()
       state.map.flyTo(ll, Math.max(state.map.getZoom() || 13, 16), { duration: 0.6 })
       setTimeout(() => marker.openPopup(), 380)
