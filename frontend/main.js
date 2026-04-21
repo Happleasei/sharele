@@ -24,6 +24,7 @@ const state = {
   myCircle: null,
   filterRoleCode: '',
   gpsStatus: '未定位',
+  mapStatus: '地图加载中',
   lat: '',
   lng: '',
   me: null,
@@ -149,10 +150,38 @@ function initMap() {
     { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', options: { subdomains: ['a', 'b', 'c'], maxZoom: 19, minZoom: 3, attribution: '&copy; OpenStreetMap' } }
   ]
   let idx = 0
+  const addFallbackGrid = () => {
+    state.mapStatus = '已切换本地网格底图'
+    renderTopBar()
+    window.L.gridLayer({
+      attribution: 'sharele fallback grid'
+    }).createTile = function(coords) {
+      const tile = document.createElement('canvas')
+      const size = this.getTileSize()
+      tile.width = size.x
+      tile.height = size.y
+      const ctx = tile.getContext('2d')
+      ctx.fillStyle = '#eaf2fb'
+      ctx.fillRect(0, 0, size.x, size.y)
+      ctx.strokeStyle = 'rgba(148,163,184,0.35)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(0, 0, size.x, size.y)
+      ctx.fillStyle = '#94a3b8'
+      ctx.font = '12px sans-serif'
+      ctx.fillText(`z${coords.z} x${coords.x} y${coords.y}`, 12, 22)
+      return tile
+    }
+    .addTo(state.map)
+  }
   const load = () => {
     const conf = layers[idx]
-    if (!conf) return
+    if (!conf) {
+      addFallbackGrid()
+      return
+    }
     const layer = window.L.tileLayer(conf.url, conf.options)
+    state.mapStatus = '地图底图加载中'
+    renderTopBar()
     let switched = false
     layer.on('tileerror', () => {
       if (switched) return
@@ -160,6 +189,10 @@ function initMap() {
       state.map.removeLayer(layer)
       idx += 1
       load()
+    })
+    layer.on('load', () => {
+      state.mapStatus = '地图已加载'
+      renderTopBar()
     })
     layer.addTo(state.map)
   }
@@ -327,6 +360,7 @@ function renderTopBar() {
     </div>
     <div class="top-right">
       <div class="gps-chip">${state.gpsStatus}</div>
+      <div class="gps-chip">${state.mapStatus}</div>
       <button class="avatar-entry" id="openMy">${meUser.avatarUrl ? `<img src="${meUser.avatarUrl}" alt="me" />` : `<span>${(meUser.nickname || '我').slice(0,1)}</span>`}</button>
     </div>
   `
