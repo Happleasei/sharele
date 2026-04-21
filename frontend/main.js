@@ -161,14 +161,47 @@ function initMap() {
       tile.width = size.x
       tile.height = size.y
       const ctx = tile.getContext('2d')
-      ctx.fillStyle = '#eaf2fb'
+
+      const bg = ctx.createLinearGradient(0, 0, size.x, size.y)
+      bg.addColorStop(0, '#edf4fb')
+      bg.addColorStop(1, '#d9e8f6')
+      ctx.fillStyle = bg
       ctx.fillRect(0, 0, size.x, size.y)
-      ctx.strokeStyle = 'rgba(148,163,184,0.35)'
+
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.28)'
       ctx.lineWidth = 1
       ctx.strokeRect(0, 0, size.x, size.y)
-      ctx.fillStyle = '#94a3b8'
+
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.16)'
+      ctx.lineWidth = 1
+      for (let i = 64; i < size.x; i += 64) {
+        ctx.beginPath()
+        ctx.moveTo(i, 0)
+        ctx.lineTo(i, size.y)
+        ctx.stroke()
+      }
+      for (let i = 64; i < size.y; i += 64) {
+        ctx.beginPath()
+        ctx.moveTo(0, i)
+        ctx.lineTo(size.x, i)
+        ctx.stroke()
+      }
+
+      ctx.strokeStyle = 'rgba(14, 165, 233, 0.22)'
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(size.x / 2, 0)
+      ctx.lineTo(size.x / 2, size.y)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(0, size.y / 2)
+      ctx.lineTo(size.x, size.y / 2)
+      ctx.stroke()
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'
       ctx.font = '12px sans-serif'
-      ctx.fillText(`z${coords.z} x${coords.x} y${coords.y}`, 12, 22)
+      ctx.fillText(`sharele fallback map`, 12, 22)
+      ctx.fillText(`z${coords.z} · x${coords.x} · y${coords.y}`, 12, 42)
       return tile
     }
     .addTo(state.map)
