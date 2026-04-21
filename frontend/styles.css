@@ -1,17 +1,17 @@
 :root {
-  --bg: #05070b;
-  --panel: rgba(10, 14, 22, 0.84);
-  --panel-strong: rgba(8, 11, 18, 0.92);
-  --line: rgba(255,255,255,.12);
-  --text: #f8fafc;
-  --muted: #94a3b8;
+  --bg: #dfe7f3;
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel-strong: rgba(248, 250, 252, 0.9);
+  --line: rgba(15,23,42,.10);
+  --text: #0f172a;
+  --muted: #64748b;
   --accent: #38bdf8;
 }
 * { box-sizing: border-box; }
-html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); }
+html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans SC', sans-serif; background: linear-gradient(180deg, #eef4fb, #dfe7f3); color: var(--text); }
 
-.map-page { position: relative; width: 100%; height: 100%; overflow: hidden; background: #05070b; }
-.full-map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; filter: saturate(1.05) contrast(1.06) brightness(.9); }
+.map-page { position: relative; width: 100%; height: 100%; overflow: hidden; background: linear-gradient(180deg, #eef4fb, #dfe7f3); }
+.full-map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; filter: saturate(0.96) contrast(1.02) brightness(1.02); }
 
 .top-bar {
   position: absolute;
@@ -28,9 +28,9 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .gps-chip,
 .avatar-entry {
   border: 1px solid var(--line);
-  background: linear-gradient(145deg, rgba(12,16,24,.78), rgba(12,16,24,.58));
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.62));
   backdrop-filter: blur(14px) saturate(120%);
-  box-shadow: 0 12px 28px rgba(0,0,0,.28);
+  box-shadow: 0 12px 28px rgba(15,23,42,.10);
 }
 .brand-chip {
   border-radius: 18px;
@@ -61,10 +61,10 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   width: min(860px, calc(100vw - 24px));
   z-index: 28;
   border-radius: 24px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: linear-gradient(180deg, rgba(10,14,22,.94), rgba(7,10,16,.88));
+  border: 1px solid rgba(255,255,255,.45);
+  background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(248,250,252,.8));
   backdrop-filter: blur(18px) saturate(120%);
-  box-shadow: 0 22px 46px rgba(0,0,0,.35);
+  box-shadow: 0 22px 46px rgba(15,23,42,.12);
   transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .22s ease, box-shadow .22s ease;
 }
 .bottom-sheet.open { animation: sheetRise .26s cubic-bezier(.2,.8,.2,1); }
@@ -91,8 +91,8 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .primary-btn,
 .ghost-btn {
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: linear-gradient(145deg, rgba(15,23,42,.9), rgba(30,41,59,.72));
+  border: 1px solid rgba(15,23,42,.08);
+  background: linear-gradient(145deg, rgba(255,255,255,.92), rgba(241,245,249,.9));
   color: var(--text);
   padding: 12px 14px;
   font-size: 14px;
@@ -119,8 +119,8 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .nearby-row,
 .account-card,
 .sub-card {
-  border: 1px solid rgba(255,255,255,.1);
-  background: linear-gradient(145deg, rgba(15,23,42,.72), rgba(30,41,59,.54));
+  border: 1px solid rgba(15,23,42,.08);
+  background: linear-gradient(145deg, rgba(255,255,255,.95), rgba(241,245,249,.92));
   border-radius: 18px;
   padding: 12px 14px;
 }
@@ -131,15 +131,19 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 
 .role-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 10px; margin-bottom: 12px; }
 .role-card {
-  border: 1px solid rgba(255,255,255,.1);
+  border: 1px solid rgba(15,23,42,.08);
   border-radius: 16px;
-  background: linear-gradient(145deg, rgba(15,23,42,.72), rgba(30,41,59,.54));
+  background: linear-gradient(145deg, rgba(255,255,255,.95), rgba(241,245,249,.92));
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .role-card small { color: var(--muted); }
+.role-card-picked {
+  box-shadow: inset 0 0 0 1px rgba(56,189,248,.22);
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,246,255,.94));
+}
 
 .account-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .account-avatar {
@@ -167,15 +171,15 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   gap: 10px;
   padding: 10px;
   border-radius: 22px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: linear-gradient(145deg, rgba(8,11,18,.88), rgba(10,14,22,.72));
+  border: 1px solid rgba(255,255,255,.42);
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(241,245,249,.78));
   backdrop-filter: blur(18px) saturate(120%);
-  box-shadow: 0 18px 40px rgba(0,0,0,.36);
+  box-shadow: 0 18px 40px rgba(15,23,42,.10);
 }
 .tab-btn {
   border: none;
   background: transparent;
-  color: #cbd5e1;
+  color: #64748b;
   padding: 10px 8px;
   border-radius: 16px;
   display: flex;
@@ -188,9 +192,9 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .tab-btn:hover { transform: translateY(-2px); }
 .tab-btn em { font-style: normal; font-size: 12px; }
 .tab-btn.active {
-  color: #fff;
-  background: linear-gradient(145deg, rgba(14,165,233,.22), rgba(34,197,94,.18));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 10px 18px rgba(0,0,0,.18);
+  color: #0f172a;
+  background: linear-gradient(145deg, rgba(56,189,248,.18), rgba(255,255,255,.88));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 10px 18px rgba(15,23,42,.08);
   transform: translateY(-2px);
 }
 
