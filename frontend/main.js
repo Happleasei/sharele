@@ -98,10 +98,10 @@ function generateMockNearbyByRoles() {
   const myLng = Number(state.lng)
   if (!Number.isFinite(myLat) || !Number.isFinite(myLng)) return []
   const selected = (state.selectedRoles || []).map(id => state.roles.find(r => Number(r.id) === Number(id))).filter(Boolean)
-  if (!selected.length) return []
+  const sourceRoles = selected.length ? selected : (state.roles && state.roles.length ? state.roles.slice(0, 4) : FALLBACK_ROLES.slice(0, 4))
   let idx = 1
   const out = []
-  selected.forEach(role => {
+  sourceRoles.forEach(role => {
     for (let i = 0; i < 5; i += 1) {
       const lat = myLat + randomInRange(-0.006, 0.006)
       const lng = myLng + randomInRange(-0.006, 0.006)
@@ -680,7 +680,11 @@ function bindActions() {
   $('filterRole')?.addEventListener('change', async (e) => {
     state.filterRoleCode = e.target.value
     const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
+    if (state.token) {
+      state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
+    } else {
+      state.nearby = generateMockNearbyByRoles().filter(item => !state.filterRoleCode || item.roleCode === state.filterRoleCode)
+    }
     renderUI()
   })
 
@@ -730,9 +734,17 @@ function bindActions() {
       if (state.token) {
         await request('/user/location', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ lat, lng, isOnline: true }) }).catch(() => {})
       }
+      if (!state.nearby || !state.nearby.length || !state.token) {
+        state.nearby = generateMockNearbyByRoles().filter(item => !state.filterRoleCode || item.roleCode === state.filterRoleCode)
+      }
       renderUI()
     }, () => {
       state.gpsStatus = '定位失败，请手动授权'
+      if (!state.lat || !state.lng) {
+        state.lat = '30.2741'
+        state.lng = '120.1551'
+        state.nearby = generateMockNearbyByRoles().filter(item => !state.filterRoleCode || item.roleCode === state.filterRoleCode)
+      }
       renderUI()
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
   }
@@ -769,6 +781,11 @@ async function bootstrap() {
     loadMe()
   ])
   state.roles = roles && roles.length ? roles : [...FALLBACK_ROLES]
+  if (!state.lat || !state.lng) {
+    state.lat = '30.2741'
+    state.lng = '120.1551'
+    state.gpsStatus = '默认定位：杭州中心'
+  }
   if (state.token) {
     const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
     state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => [])
