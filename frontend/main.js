@@ -425,10 +425,17 @@ function bindActions() {
 
   $('verify')?.addEventListener('click', async () => {
     try {
+      const realName = String($('realName')?.value || '').trim()
+      const idCardNo = String($('idCardNo')?.value || '').trim()
+      if (!realName || !idCardNo) {
+        alert('请填写真实姓名和身份证号')
+        return
+      }
+
       await request('/verify/realname', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ realName: $('realName').value.trim(), idCardNo: $('idCardNo').value.trim() })
+        body: JSON.stringify({ realName, idCardNo })
       })
       await loadMe()
       alert('实名提交成功')

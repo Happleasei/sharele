@@ -46,7 +46,9 @@ app.post('/auth/login', async (req, res) => {
 })
 
 app.post('/verify/realname', authRequired, async (req, res) => {
-  const { realName, idCardNo } = req.body || {}
+  const body = req.body || {}
+  const realName = String(body.realName ?? body.real_name ?? '').trim()
+  const idCardNo = String(body.idCardNo ?? body.id_card_no ?? '').trim()
   if (!realName || !idCardNo) return res.status(400).json({ message: 'realName/idCardNo 必填' })
   await pool.query('UPDATE users SET real_name=?, id_card_no=?, verify_status=? WHERE id=?', [realName, idCardNo, 'approved', req.user.uid])
   res.json({ ok: true })
