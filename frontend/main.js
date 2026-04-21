@@ -160,8 +160,18 @@ function initMap() {
     layer.addTo(state.map)
   }
   load()
-  state.map.on('zoomend moveend', () => {
+  state.map.on('zoomend moveend', async () => {
     renderMapOverlays()
+    if (state.token) {
+      const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+      const list = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
+      if (list && list.length) {
+        state.nearby = list
+        applyNearby1kmFilter()
+        renderSheet()
+        bindActions()
+      }
+    }
   })
 }
 
@@ -173,6 +183,12 @@ function clearMapOverlays() {
     state.map.removeLayer(state.myCircle)
     state.myCircle = null
   }
+}
+
+function clusterColorClass(items = []) {
+  const first = items[0] || {}
+  const roleCode = String(first.roleCode || '')
+  return `cluster-${roleCode || 'default'}`
 }
 
 function clusterNearbyItems(items = []) {
@@ -232,7 +248,7 @@ function renderMapOverlays() {
     if (group.items.length > 1) {
       const icon = window.L.divIcon({
         className: '',
-        html: `<div class="cluster-pin"><span>${group.items.length}</span></div>`,
+        html: `<div class="cluster-pin ${clusterColorClass(group.items)}"><span>${group.items.length}</span></div>`,
         iconSize: [48, 48],
         iconAnchor: [24, 24]
       })
@@ -255,7 +271,19 @@ function renderMapOverlays() {
       iconAnchor: [22, 22]
     })
     const marker = window.L.marker([lat, lng], { icon, riseOnHover: true }).addTo(state.map)
-    marker.bindPopup(`<b>${name}</b><br/>${visual.emoji} ${item.roleName || '未设置角色'}<br/>${item.bio || '这个人很神秘，还没写简介。'}<br/><button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>`)
+    marker.bindPopup(`
+      <div class="popup-card">
+        <div class="popup-head">
+          <div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>
+          <div>
+            <div class="popup-name">${name}</div>
+            <div class="popup-role">${visual.emoji} ${item.roleName || '未设置角色'}</div>
+          </div>
+        </div>
+        <div class="popup-bio">${item.bio || '这个人很神秘，还没写简介。'}</div>
+        <button class="interact-btn" data-id="${item.id}" data-target="${name}">发起互动</button>
+      </div>
+    `)
     state.markers.push(marker)
   })
   state.map.invalidateSize()
