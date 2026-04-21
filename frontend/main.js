@@ -29,7 +29,8 @@ const state = {
   activePanel: '',
   authMode: 'login',
   autoLocated: false,
-  interactions: []
+  interactions: [],
+  menuOpen: false
 }
 
 const app = document.querySelector('#app')
@@ -214,13 +215,16 @@ function renderTopOverlay() {
   el.innerHTML = `
     <div class="logo-block"><div class="brand">sharele</div><div class="sub">移动职业/兴趣角色地图</div></div>
     <div class="top-actions">
-      <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
-      <button class="mini-btn" id="toggleVerify">实名</button>
-      <button class="mini-btn" id="toggleProfile">资料</button>
-      <button class="mini-btn" id="toggleRoles">角色</button>
-      <button class="mini-btn" id="toggleInteractions">互动</button>
-      <button class="mini-btn" id="geoLocate">定位</button>
-      <button class="mini-btn" id="loadNearby">刷新</button>
+      <button class="mini-btn" id="toggleMenu">☰ 菜单</button>
+      ${state.menuOpen ? `
+        <div class="menu-pop">
+          <button class="mini-btn" id="toggleAuth">${state.token ? '账户' : '登录'}</button>
+          <button class="mini-btn" id="toggleRoles">角色</button>
+          <button class="mini-btn" id="toggleInteractions">互动</button>
+          <button class="mini-btn" id="geoLocate">定位</button>
+          <button class="mini-btn" id="loadNearby">刷新</button>
+        </div>
+      ` : ''}
     </div>
     <div class="status-line">
       <span>定位：${state.gpsStatus}</span>
@@ -242,8 +246,8 @@ function renderPanel() {
   }
 
   if (state.activePanel === 'auth') {
-    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">${state.token ? '账户信息' : '登录 / 注册'}</div><button class="mini-btn" id="closePanel">关闭</button></div>
-    ${state.token ? `<div class="panel-row"><div class="panel-note">当前：${state.me ? (state.me.user.nickname || state.me.user.phone) : '已登录'}</div><div class="panel-note">实名状态：${state.me ? state.me.user.verifyStatus : '未知'}</div><button id="logout" class="btn sec">退出登录</button></div>` : `<div class="panel-tabs"><button class="mini-btn ${state.authMode === 'login' ? 'active' : ''}" id="tabLogin">登录</button><button class="mini-btn ${state.authMode === 'register' ? 'active' : ''}" id="tabRegister">注册</button></div><div class="panel-row"><input id="phone" class="input" placeholder="手机号" /><input id="password" class="input" placeholder="密码" type="password" />${state.authMode === 'register' ? '<input id="nickname" class="input" placeholder="昵称（注册可填）" />' : ''}<button id="submitAuth" class="btn">${state.authMode === 'login' ? '登录' : '注册'}</button></div>`}</div>`
+    el.innerHTML = `<div class="floating-panel"><div class="panel-head"><div class="panel-title">${state.token ? '账户' : '登录 / 注册'}</div><button class="mini-btn" id="closePanel">关闭</button></div>
+    ${state.token ? `<div class="panel-row"><div class="panel-note">当前：${state.me ? (state.me.user.nickname || state.me.user.phone) : '已登录'}</div><div class="panel-note">实名状态：${state.me ? state.me.user.verifyStatus : '未知'}</div></div><div class="panel-row"><button id="openVerifyFromAccount" class="btn sec">实名认证</button><button id="openProfileFromAccount" class="btn sec">资料设置</button><button id="logout" class="btn sec">退出登录</button></div>` : `<div class="panel-tabs"><button class="mini-btn ${state.authMode === 'login' ? 'active' : ''}" id="tabLogin">登录</button><button class="mini-btn ${state.authMode === 'register' ? 'active' : ''}" id="tabRegister">注册</button></div><div class="panel-row"><input id="phone" class="input" placeholder="手机号" /><input id="password" class="input" placeholder="密码" type="password" />${state.authMode === 'register' ? '<input id="nickname" class="input" placeholder="昵称（注册可填）" />' : ''}<button id="submitAuth" class="btn">${state.authMode === 'login' ? '登录' : '注册'}</button></div>`}</div>`
     return
   }
 
@@ -302,16 +306,27 @@ function togglePanel(panel) {
 
 function bindActions() {
   const $ = (id) => document.getElementById(id)
-  $('toggleAuth')?.addEventListener('click', () => togglePanel('auth'))
-  $('toggleVerify')?.addEventListener('click', () => togglePanel('verify'))
-  $('toggleProfile')?.addEventListener('click', () => togglePanel('profile'))
-  $('toggleRoles')?.addEventListener('click', () => togglePanel('roles'))
+  $('toggleMenu')?.addEventListener('click', () => {
+    state.menuOpen = !state.menuOpen
+    renderUI()
+  })
+  $('toggleAuth')?.addEventListener('click', () => {
+    state.menuOpen = false
+    togglePanel('auth')
+  })
+  $('toggleRoles')?.addEventListener('click', () => {
+    state.menuOpen = false
+    togglePanel('roles')
+  })
   $('toggleInteractions')?.addEventListener('click', async () => {
     if (!state.token) return alert('请先登录')
     state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
+    state.menuOpen = false
     togglePanel('interactions')
   })
   $('closePanel')?.addEventListener('click', () => { state.activePanel = ''; renderUI() })
+  $('openVerifyFromAccount')?.addEventListener('click', () => { state.activePanel = 'verify'; renderUI() })
+  $('openProfileFromAccount')?.addEventListener('click', () => { state.activePanel = 'profile'; renderUI() })
   $('tabLogin')?.addEventListener('click', () => { state.authMode = 'login'; renderUI() })
   $('tabRegister')?.addEventListener('click', () => { state.authMode = 'register'; renderUI() })
 
@@ -496,20 +511,28 @@ async function loadMe() {
 async function bootstrap() {
   mountShell()
   initMap()
-  state.roles = await request('/roles').catch(() => [])
+
+  const [roles] = await Promise.all([
+    request('/roles').catch(() => []),
+    loadMe()
+  ])
+  state.roles = roles
   if (!state.roles || !state.roles.length) {
     state.roles = [...FALLBACK_ROLES]
   }
-  await loadMe()
-  if (state.token) {
-    const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => [])
-  }
 
+  // 先把基础 UI 渲染出来，避免首屏等待接口显得卡
   if (!state.nearby || !state.nearby.length) {
     state.nearby = generateMockNearbyByRoles()
   }
   renderUI()
+
+  // 再异步刷新真实附近数据
+  if (state.token) {
+    const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+    state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => state.nearby)
+    renderUI()
+  }
 
   if (!state.autoLocated && navigator.geolocation) {
     state.autoLocated = true
