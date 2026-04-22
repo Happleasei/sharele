@@ -12,10 +12,23 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+async function ensureColumn(tableName, columnName, definitionSql) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS count
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  )
+  if (Number(rows?.[0]?.count || 0) > 0) return
+  await pool.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definitionSql}`)
+}
+
 async function ensureSchema() {
-  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255) NULL")
-  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255) NULL")
-  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(16) NULL")
+  await ensureColumn('users', 'avatar_url', 'VARCHAR(255) NULL')
+  await ensureColumn('users', 'bio', 'VARCHAR(255) NULL')
+  await ensureColumn('users', 'gender', 'VARCHAR(16) NULL')
   await pool.query(`CREATE TABLE IF NOT EXISTS interactions (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     from_user_id BIGINT NOT NULL,
