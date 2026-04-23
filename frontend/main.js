@@ -1138,15 +1138,16 @@ function renderTabbar() {
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>'
     }
   ]
+  const selectedTab = state.sheetOpen ? state.activeTab : ''
   el.innerHTML = `
     <div class="tabbar-shell">
       <div class="tabbar-group">
         <div class="tabbar-subgroup">
-          ${tabs.slice(0, 2).map(tab => `<button class="tab-pill ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
+          ${tabs.slice(0, 2).map(tab => `<button class="tab-pill ${selectedTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
         </div>
         <div class="tabbar-divider"></div>
         <div class="tabbar-subgroup">
-          ${tabs.slice(2).map(tab => `<button class="tab-pill ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
+          ${tabs.slice(2).map(tab => `<button class="tab-pill ${selectedTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
         </div>
       </div>
     </div>
