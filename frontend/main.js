@@ -1,7 +1,12 @@
 const API_CANDIDATES = (() => {
   const { protocol, hostname, origin } = window.location
   const localSet = ['localhost', '127.0.0.1', '0.0.0.0']
-  const out = []
+  const configured = [
+    window.SHARELE_API_BASE,
+    window.__SHARELE_CONFIG__?.apiBase,
+    localStorage.getItem('sharele_api_base')
+  ].filter(Boolean)
+  const out = [...configured]
 
   if (localSet.includes(hostname)) {
     out.push('http://127.0.0.1:3000')
@@ -68,8 +73,8 @@ const state = {
   highlightedUserId: '',
   loading: {},
   autoLocated: false,
-  activeTab: '',
-  sheetOpen: false,
+  activeTab: localStorage.getItem('sharele_active_tab') || 'nearby',
+  sheetOpen: true,
   authMode: 'login',
   syncingNearby: false,
   mapRefreshTimer: null,
@@ -82,10 +87,15 @@ function authHeaders() {
   return state.token ? { Authorization: `Bearer ${state.token}` } : {}
 }
 
+function persistUiState() {
+  if (state.activeTab) localStorage.setItem('sharele_active_tab', state.activeTab)
+}
+
 function requireApiReady(actionLabel = '该操作') {
   if (state.apiReady) return true
   state.activeTab = state.activeTab || 'nearby'
   state.sheetOpen = true
+  persistUiState()
   showNotice(`${actionLabel} 依赖后端服务，当前处于离线浏览模式，请稍后再试。`, 'error')
   renderUI()
   return false
@@ -612,7 +622,7 @@ function renderSheet() {
   let content = ''
   if (state.activeTab === 'nearby') {
     const nearbyGuide = !state.token
-      ? `<div class="guide-card"><div><div class="guide-title">先登录，地图才会真正活起来</div><div class="small">游客模式下你只能浏览，登录后才能实名、选角色、发起互动。</div></div><button class="primary-btn btn-main" id="jumpToMyLogin">去登录</button></div>`
+      ? `<div class="onboarding-hero"><div class="onboarding-copy"><div class="onboarding-kicker">sharele / 共享世界</div><div class="onboarding-title">把“附近的人”变成可连接的角色地图</div><div class="onboarding-desc">不是泛社交，不是冷冰冰的点位地图。你先定义自己是谁，再进入对应的人群现场：摄影、化妆、模特、骑友、登山客、小吃摊、吃货……附近的人才会真正有意义。</div><div class="onboarding-steps"><div class="onboarding-step"><strong>01</strong><span>登录账号</span></div><div class="onboarding-step"><strong>02</strong><span>实名 + 选角色</span></div><div class="onboarding-step"><strong>03</strong><span>进入附近 1km 地图</span></div></div><div class="onboarding-actions"><button class="primary-btn btn-main" id="jumpToMyLogin">立即进入</button><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToRoles">先看角色</button></div></div><div class="onboarding-side"><div class="onboarding-metric"><span>角色人群</span><strong>${state.roles.length || FALLBACK_ROLES.length}</strong></div><div class="onboarding-metric"><span>当前模式</span><strong>${state.apiReady ? '在线体验' : '离线预览'}</strong></div><div class="onboarding-metric"><span>默认城市</span><strong>杭州</strong></div></div></div>`
       : !hasPrimaryRole
         ? `<div class="guide-card"><div><div class="guide-title">还差一步：先选角色</div><div class="small">系统会按你当前角色的大类来展示同类人群，不选角色，附近页就没有明确方向。</div></div><button class="primary-btn btn-main" id="jumpToRoles">去选角色</button></div>`
         : meUser.verifyStatus !== 'approved'
@@ -906,7 +916,8 @@ function bindActions() {
 
   $('toggleSheet')?.addEventListener('click', () => {
     state.sheetOpen = !state.sheetOpen
-    if (!state.sheetOpen) state.activeTab = ''
+    if (!state.sheetOpen) state.activeTab = 'nearby'
+    persistUiState()
     renderUI()
   })
 
@@ -915,11 +926,11 @@ function bindActions() {
       const tab = btn.getAttribute('data-tab')
       if (state.activeTab === tab && state.sheetOpen) {
         state.sheetOpen = false
-        state.activeTab = ''
       } else {
         state.activeTab = tab
         state.sheetOpen = true
       }
+      persistUiState()
       renderUI()
     })
   })
@@ -927,18 +938,21 @@ function bindActions() {
   $('openMy')?.addEventListener('click', () => {
     state.activeTab = 'my'
     state.sheetOpen = true
+    persistUiState()
     renderUI()
   })
 
   $('jumpToMyLogin')?.addEventListener('click', () => {
     state.activeTab = 'my'
     state.sheetOpen = true
+    persistUiState()
     renderUI()
   })
 
   $('jumpToRoles')?.addEventListener('click', () => {
     state.activeTab = 'roles'
     state.sheetOpen = true
+    persistUiState()
     renderUI()
   })
 
@@ -956,6 +970,7 @@ function bindActions() {
   $('jumpToMyFromRoles')?.addEventListener('click', () => {
     state.activeTab = 'my'
     state.sheetOpen = true
+    persistUiState()
     renderUI()
   })
 
@@ -1021,6 +1036,7 @@ function bindActions() {
         state.activeTab = 'nearby'
         showNotice('登录成功，已进入地图模式', 'success')
       }
+      persistUiState()
       renderUI()
     } catch (e) { showNotice(e.message || '登录失败', 'error') }
     finally {
@@ -1138,6 +1154,7 @@ function bindActions() {
         state.activeTab = 'nearby'
         showNotice('实名认证提交成功，已开启互动权限', 'success')
       }
+      persistUiState()
       renderUI()
     } catch (e) { showNotice(e.message || '实名认证失败', 'error') }
     finally {
@@ -1249,6 +1266,7 @@ function bindActions() {
       }
       state.nearby = generateMockNearbyByRoles()
       state.activeTab = 'nearby'
+      persistUiState()
       renderUI()
       showNotice('角色已切换，附近列表已更新', 'success')
     } catch (e) { showNotice(e.message || '角色保存失败', 'error') }
