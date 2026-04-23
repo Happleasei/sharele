@@ -901,7 +901,7 @@ function renderSheet() {
         </div>
         <input id="roleSearch" class="sheet-input role-search" placeholder="搜索角色" value="${roleQuery}" />
       </div>
-      ${selectedRole ? `<div class="role-spotlight ${selectedVisual.cls}"><div class="role-spotlight-top"><div><div class="role-spotlight-kicker">已选中角色</div><div class="role-spotlight-title">${selectedVisual.emoji} ${selectedRole.name}</div><div class="role-spotlight-desc">${selectedNarrative.vibe}</div></div><div class="role-spotlight-badge">${selectedVisual.tone}</div></div><div class="role-spotlight-grid"><div class="role-spotlight-item"><span>更适合</span><strong>${selectedNarrative.prompt}</strong></div><div class="role-spotlight-item"><span>地图优先看到</span><strong>${roleHintMap[selectedRole.code] || '与你更相关的人群'}</strong></div></div></div>` : ''}
+      ${selectedRole ? `<div class="role-spotlight ${selectedVisual.cls}"><div class="role-spotlight-top"><div><div class="role-spotlight-kicker">已选中角色</div><div class="role-spotlight-title">${selectedVisual.emoji} ${selectedRole.name}</div><div class="role-spotlight-desc">${selectedNarrative.vibe}</div></div><div class="role-spotlight-badge">${selectedVisual.tone}</div></div><div class="role-spotlight-grid"><div class="role-spotlight-item"><span>更适合</span><strong>${selectedNarrative.prompt}</strong></div><div class="role-spotlight-item"><span>地图优先看到</span><strong>${roleHintMap[selectedRole.code] || '与你更相关的人群'}</strong></div></div><div class="role-spotlight-note">保存后，附近地图会优先按这个角色的人群关系来组织可见用户。</div></div>` : ''}
       <div class="role-list-shell"><div class="role-list">${filteredRoles.map(r => `<button class="role-list-item ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}" ${canEditRoles ? '' : 'disabled'}><div><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.category} · ${r.code}</div></div><div class="role-list-hint">${roleHintMap[r.code] || '保存后优先看到与你更相关的人群'}</div></button>`).join('') || '<div class="empty-state compact-empty"><div class="small">没有匹配的角色</div></div>'}</div></div>
       <div class="role-selection-bar compact-role-selection ${selectedRoleId ? 'role-selection-bar-active' : ''}">
         <div>
@@ -986,6 +986,7 @@ function renderSheet() {
               <div class="account-next-item ${activeRole ? 'done' : ''}"><span>确定主角色</span><em>${activeRole ? '已设置' : '优先去选'}</em></div>
               <div class="account-next-item ${(state.lat && state.lng) ? 'done' : ''}"><span>打开定位</span><em>${(state.lat && state.lng) ? '已开启' : '建议补齐'}</em></div>
             </div>
+            <div class="account-next-foot">${activeRole ? `${activeRoleVisual.emoji} ${activeRole.name} 角色已就位，接下来可以直接回到地图找人。` : '补齐主角色后，地图会更懂你应该看到谁。'} </div>
           </div>
           ${(!hasPrimaryRole || meUser.verifyStatus !== 'approved') ? `<div class="setup-checklist compact-checklist"><div class="checklist-head"><div class="sheet-sub">快速补齐</div><div class="small">还差几步就能完整使用 sharele</div></div><div class="checklist-grid checklist-grid-inline"><div class="check-item ${state.token ? 'done' : ''}">1. 登录</div><div class="check-item ${meUser.verifyStatus === 'approved' ? 'done' : ''}">2. 实名</div><div class="check-item ${hasPrimaryRole ? 'done' : ''}">3. 选角色</div></div></div>` : ''}
         </div>

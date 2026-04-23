@@ -876,6 +876,12 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   gap: 10px;
   margin-top: 12px;
 }
+.role-spotlight-note {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #475569;
+}
 .role-spotlight-item {
   display: grid;
   gap: 4px;
@@ -1432,6 +1438,12 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   display: grid;
   gap: 10px;
   margin-top: 10px;
+}
+.account-next-foot {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #475569;
 }
 .account-next-item {
   display: flex;
