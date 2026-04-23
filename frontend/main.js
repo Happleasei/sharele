@@ -148,15 +148,106 @@ async function request(path, options = {}) {
 
 function roleVisual(roleCode = '') {
   const map = {
-    photographer: { emoji: '📷', cls: 'role-photographer' },
-    makeup: { emoji: '💄', cls: 'role-makeup' },
-    model: { emoji: '🧍', cls: 'role-model' },
-    snack: { emoji: '🍢', cls: 'role-snack' },
-    foodie: { emoji: '🍜', cls: 'role-foodie' },
-    cyclist: { emoji: '🚴', cls: 'role-cyclist' },
-    hiker: { emoji: '⛰️', cls: 'role-hiker' }
+    photographer: {
+      emoji: '📷',
+      cls: 'role-photographer',
+      tone: '影像协作',
+      accent: '#8b5cf6',
+      soft: 'rgba(139,92,246,.14)',
+      ring: 'rgba(139,92,246,.26)',
+      gradient: 'linear-gradient(135deg,#c4b5fd,#8b5cf6)',
+      markerLabel: '摄',
+      badge: '擅长出片与构图'
+    },
+    makeup: {
+      emoji: '💄',
+      cls: 'role-makeup',
+      tone: '妆造协作',
+      accent: '#ec4899',
+      soft: 'rgba(236,72,153,.14)',
+      ring: 'rgba(236,72,153,.26)',
+      gradient: 'linear-gradient(135deg,#f9a8d4,#ec4899)',
+      markerLabel: '妆',
+      badge: '擅长妆面与造型'
+    },
+    model: {
+      emoji: '🧍',
+      cls: 'role-model',
+      tone: '拍摄搭档',
+      accent: '#0ea5e9',
+      soft: 'rgba(14,165,233,.14)',
+      ring: 'rgba(14,165,233,.26)',
+      gradient: 'linear-gradient(135deg,#7dd3fc,#0ea5e9)',
+      markerLabel: '模',
+      badge: '适合拍摄与出镜'
+    },
+    snack: {
+      emoji: '🍢',
+      cls: 'role-snack',
+      tone: '街头供给',
+      accent: '#f59e0b',
+      soft: 'rgba(245,158,11,.14)',
+      ring: 'rgba(245,158,11,.26)',
+      gradient: 'linear-gradient(135deg,#fde68a,#f59e0b)',
+      markerLabel: '摊',
+      badge: '适合快逛快吃'
+    },
+    foodie: {
+      emoji: '🍜',
+      cls: 'role-foodie',
+      tone: '吃喝同好',
+      accent: '#ef4444',
+      soft: 'rgba(239,68,68,.14)',
+      ring: 'rgba(239,68,68,.26)',
+      gradient: 'linear-gradient(135deg,#fca5a5,#ef4444)',
+      markerLabel: '吃',
+      badge: '偏向探店与打卡'
+    },
+    cyclist: {
+      emoji: '🚴',
+      cls: 'role-cyclist',
+      tone: '骑行同路',
+      accent: '#22c55e',
+      soft: 'rgba(34,197,94,.14)',
+      ring: 'rgba(34,197,94,.26)',
+      gradient: 'linear-gradient(135deg,#86efac,#22c55e)',
+      markerLabel: '骑',
+      badge: '适合结伴骑行'
+    },
+    hiker: {
+      emoji: '⛰️',
+      cls: 'role-hiker',
+      tone: '徒步自然',
+      accent: '#64748b',
+      soft: 'rgba(100,116,139,.16)',
+      ring: 'rgba(100,116,139,.24)',
+      gradient: 'linear-gradient(135deg,#cbd5e1,#64748b)',
+      markerLabel: '徒',
+      badge: '适合户外结伴'
+    },
+    visitor: {
+      emoji: '👀',
+      cls: 'role-visitor',
+      tone: '仅浏览',
+      accent: '#94a3b8',
+      soft: 'rgba(148,163,184,.16)',
+      ring: 'rgba(148,163,184,.22)',
+      gradient: 'linear-gradient(135deg,#e2e8f0,#94a3b8)',
+      markerLabel: '看',
+      badge: '当前只展示附近路人'
+    }
   }
-  return map[roleCode] || { emoji: '📍', cls: 'role-default' }
+  return map[roleCode] || {
+    emoji: '📍',
+    cls: 'role-default',
+    tone: '附近的人',
+    accent: '#64748b',
+    soft: 'rgba(100,116,139,.16)',
+    ring: 'rgba(100,116,139,.24)',
+    gradient: 'linear-gradient(135deg,#cbd5e1,#64748b)',
+    markerLabel: '人',
+    badge: '附近可见'
+  }
 }
 
 function distanceKm(lat1, lng1, lat2, lng2) {
@@ -445,21 +536,26 @@ function clusterNearbyItems(items = []) {
 
 function renderPersonSnippet(item = {}, options = {}) {
   const name = item.nickname || `用户${item.id || ''}`
+  const visual = roleVisual(item.roleCode)
   const role = item.roleName || '未设置角色'
   const distance = Number(item.distanceKm || 0).toFixed(2)
   const bio = item.bio || '这个人还没写简介'
   const showDistance = options.showDistance !== false
   const statusText = options.statusText || ''
+  const toneText = options.toneText === false ? '' : (visual.tone || '')
+  const badgeText = options.badgeText === false ? '' : (visual.badge || '')
   return `
-    <div class="person-snippet">
+    <div class="person-snippet ${visual.cls}">
       <div class="person-name-row">
         <div class="person-name">${name}</div>
-        <div class="person-role">${role}</div>
+        <div class="person-role role-pill ${visual.cls}">${visual.emoji} ${role}</div>
       </div>
+      ${toneText ? `<div class="person-role-tone">${toneText}</div>` : ''}
       <div class="person-bio">${bio}</div>
+      ${badgeText ? `<div class="person-role-badge ${visual.cls}">${badgeText}</div>` : ''}
       <div class="person-meta-row">
         ${showDistance ? `<div class="person-meta">${distance} km 内</div>` : ''}
-        ${statusText ? `<div class="person-inline-state">${statusText}</div>` : ''}
+        ${statusText ? `<div class="person-inline-state ${visual.cls}">${statusText}</div>` : ''}
       </div>
     </div>
   `
@@ -494,10 +590,11 @@ function renderMapOverlays() {
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
       const name = item.nickname || `用户${item.id}`
       const avatarUrl = item.avatarUrl || ''
+      const visual = roleVisual(item.roleCode)
       const marker = new window.AMap.Marker({
         position: [lng, lat],
-        offset: new window.AMap.Pixel(-22, -22),
-        content: `<div class="avatar-pin">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>`
+        offset: new window.AMap.Pixel(-26, -26),
+        content: `<div class="avatar-pin ${visual.cls}"><div class="avatar-pin-ring" style="background:${visual.gradient}; box-shadow: 0 0 0 4px ${visual.soft}">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback" style="background:${visual.gradient}">${visual.markerLabel}</div>`}</div></div>`
       })
       marker.on('click', () => {
         state.highlightedUserId = String(item.id)
@@ -549,9 +646,9 @@ function renderMapOverlays() {
     const name = item.nickname || `用户${item.id}`
     const icon = window.L.divIcon({
       className: '',
-      html: `<div class="avatar-pin">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>`,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
+      html: `<div class="avatar-pin ${visual.cls}"><div class="avatar-pin-ring" style="background:${visual.gradient}; box-shadow: 0 0 0 4px ${visual.soft}">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback" style="background:${visual.gradient}">${visual.markerLabel}</div>`}</div></div>`,
+      iconSize: [52, 52],
+      iconAnchor: [26, 26]
     })
     const marker = window.L.marker([lat, lng], { icon, riseOnHover: true }).addTo(state.map)
     marker.bindPopup(`
@@ -645,8 +742,8 @@ function renderSheet() {
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      ${currentFocused ? `<div class="focused-person-card"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : '<div class="card-state-chip muted">点击卡片可在地图中定位</div>'}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
+      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : '<div class="card-state-chip muted">点击卡片可在地图中定位</div>'}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)

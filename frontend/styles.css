@@ -372,10 +372,35 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   color: #0284c7;
   font-weight: 700;
 }
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(56,189,248,.10);
+  border: 1px solid rgba(56,189,248,.14);
+}
+.person-role-tone {
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: .04em;
+}
 .person-bio {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.45;
+}
+.person-role-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(56,189,248,.10);
+  color: #0369a1;
 }
 .person-meta {
   font-size: 12px;
@@ -398,6 +423,30 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   font-size: 11px;
   font-weight: 700;
 }
+.role-photographer.person-inline-state,
+.role-photographer.role-pill,
+.role-photographer.person-role-badge { background: rgba(139,92,246,.12); color: #6d28d9; border-color: rgba(139,92,246,.18); }
+.role-makeup.person-inline-state,
+.role-makeup.role-pill,
+.role-makeup.person-role-badge { background: rgba(236,72,153,.12); color: #be185d; border-color: rgba(236,72,153,.18); }
+.role-model.person-inline-state,
+.role-model.role-pill,
+.role-model.person-role-badge { background: rgba(14,165,233,.12); color: #0369a1; border-color: rgba(14,165,233,.18); }
+.role-snack.person-inline-state,
+.role-snack.role-pill,
+.role-snack.person-role-badge { background: rgba(245,158,11,.14); color: #b45309; border-color: rgba(245,158,11,.18); }
+.role-foodie.person-inline-state,
+.role-foodie.role-pill,
+.role-foodie.person-role-badge { background: rgba(239,68,68,.12); color: #b91c1c; border-color: rgba(239,68,68,.18); }
+.role-cyclist.person-inline-state,
+.role-cyclist.role-pill,
+.role-cyclist.person-role-badge { background: rgba(34,197,94,.12); color: #15803d; border-color: rgba(34,197,94,.18); }
+.role-hiker.person-inline-state,
+.role-hiker.role-pill,
+.role-hiker.person-role-badge { background: rgba(100,116,139,.14); color: #334155; border-color: rgba(100,116,139,.18); }
+.role-visitor.person-inline-state,
+.role-visitor.role-pill,
+.role-visitor.person-role-badge { background: rgba(148,163,184,.14); color: #475569; border-color: rgba(148,163,184,.18); }
 .card-state-chip {
   display: inline-flex;
   align-items: center;
@@ -1010,20 +1059,27 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 }
 
 .avatar-pin {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.avatar-pin-ring {
   width: 44px;
   height: 44px;
   border-radius: 999px;
   overflow: hidden;
   border: 2px solid rgba(255,255,255,.92);
-  box-shadow: 0 10px 22px rgba(15,23,42,.18), 0 0 0 4px rgba(56,189,248,.12);
+  box-shadow: 0 10px 22px rgba(15,23,42,.18);
   background: #0f172a;
-  transition: transform .18s ease, box-shadow .18s ease;
 }
 .avatar-pin:hover,
 .pin-active .avatar-pin {
   transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 16px 28px rgba(15,23,42,.24), 0 0 0 6px rgba(56,189,248,.18);
 }
+.avatar-pin img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .cluster-pin {
   width: 48px;
@@ -1045,7 +1101,6 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .cluster-cyclist { background: radial-gradient(circle at 30% 30%, #86efac, #22c55e 45%, #15803d 100%); }
 .cluster-hiker { background: radial-gradient(circle at 30% 30%, #cbd5e1, #64748b 45%, #334155 100%); }
 .cluster-default { background: radial-gradient(circle at 30% 30%, #cbd5e1, #64748b 45%, #334155 100%); }
-.avatar-pin img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar-fallback {
   width: 100%;
   height: 100%;
@@ -1074,6 +1129,20 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   box-shadow: 0 18px 34px rgba(15,23,42,.18);
   padding: 2px;
 }
+.nearby-card.role-photographer,
+.focused-person-card.role-photographer { border-color: rgba(139,92,246,.22); background: linear-gradient(145deg, rgba(245,243,255,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-makeup,
+.focused-person-card.role-makeup { border-color: rgba(236,72,153,.22); background: linear-gradient(145deg, rgba(253,242,248,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-model,
+.focused-person-card.role-model { border-color: rgba(14,165,233,.22); background: linear-gradient(145deg, rgba(240,249,255,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-snack,
+.focused-person-card.role-snack { border-color: rgba(245,158,11,.22); background: linear-gradient(145deg, rgba(255,251,235,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-foodie,
+.focused-person-card.role-foodie { border-color: rgba(239,68,68,.20); background: linear-gradient(145deg, rgba(254,242,242,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-cyclist,
+.focused-person-card.role-cyclist { border-color: rgba(34,197,94,.22); background: linear-gradient(145deg, rgba(240,253,244,.96), rgba(255,255,255,.94)); }
+.nearby-card.role-hiker,
+.focused-person-card.role-hiker { border-color: rgba(100,116,139,.18); background: linear-gradient(145deg, rgba(248,250,252,.96), rgba(255,255,255,.94)); }
 .popup-arrow {
   position: absolute;
   left: 18px;
