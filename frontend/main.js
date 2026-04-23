@@ -817,7 +817,8 @@ function renderSheet() {
 
     const currentFocused = (state.nearby1km || []).find(item => String(item.id) === String(state.highlightedUserId))
     content = `
-      <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">先看地图，再从列表里快速挑人、飞点、互动。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
+      <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">先看地图，再从列表里快速挑人、飞点、互动。</div></div></div>
+      <div class="nearby-filter-row"><button class="role-quick-chip ${!state.filterRoleCode ? 'active' : ''}" data-filter-role="">全部</button>${state.roles.map(r => `<button class="role-quick-chip ${roleVisual(r.code).cls} ${state.filterRoleCode === r.code ? 'active' : ''}" data-filter-role="${r.code}">${roleVisual(r.code).emoji} ${r.name}</button>`).join('')}</div>
       ${nearbyGuide}
       ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">当前是离线浏览模式</div><div class="small">地图、角色和页面结构可继续查看；登录、实名、资料保存、互动发送需等待后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyLogin">先看我的页</button></div>' : ''}
       <div class="stats-strip compact-stats-strip">
@@ -1462,15 +1463,17 @@ function bindActions() {
     }
   })
 
-  $('filterRole')?.addEventListener('change', async (e) => {
-    state.filterRoleCode = e.target.value
-    const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
-    if (state.token) {
-      state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
-    } else {
-      state.nearby = generateMockNearbyByRoles().filter(item => !state.filterRoleCode || item.roleCode === state.filterRoleCode)
-    }
-    renderUI()
+  document.querySelectorAll('[data-filter-role]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      state.filterRoleCode = String(btn.getAttribute('data-filter-role') || '')
+      const query = state.filterRoleCode ? `?roleCode=${encodeURIComponent(state.filterRoleCode)}` : ''
+      if (state.token) {
+        state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => generateMockNearbyByRoles())
+      } else {
+        state.nearby = generateMockNearbyByRoles().filter(item => !state.filterRoleCode || item.roleCode === state.filterRoleCode)
+      }
+      renderUI()
+    })
   })
 
   document.querySelectorAll('[data-fly-id]').forEach(row => {
