@@ -750,6 +750,20 @@ function roleActionText(roleCode = '', canInteract = true) {
   return map[roleCode] || '发起互动'
 }
 
+function roleGreeting(roleCode = '', target = '你') {
+  const map = {
+    photographer: `你好，想约你一起拍点内容，方便聊聊吗？`,
+    makeup: `你好，想和你约个妆造配合，方便聊聊吗？`,
+    model: `你好，想约你做一次拍摄搭档，方便聊聊吗？`,
+    snack: `你好，刚好在附近，想去看看你的摊，方便发个位置吗？`,
+    foodie: `你好，想约你一起去吃点好吃的，方便聊聊吗？`,
+    cyclist: `你好，想约你一起骑一段，看看路线合不合适？`,
+    hiker: `你好，想约你一起徒步或爬个小山，方便聊聊路线吗？`,
+    visitor: `你好，刚好在附近，想认识一下。`
+  }
+  return map[roleCode] || `你好，想和你认识一下，方便聊聊吗？`
+}
+
 function getLegendRoles() {
   const visible = (state.nearby1km || []).map(item => String(item.roleCode || '')).filter(Boolean)
   const unique = Array.from(new Set(visible))
@@ -851,7 +865,7 @@ function renderSheet() {
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
       ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="focused-role-copy">${roleNarrative(currentFocused.roleCode).nearby}</div><div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-role-code="${currentFocused.roleCode || ''}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(currentFocused.roleCode, true) : '暂不可互动'}</button></div></div>` : ''}
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(item.roleCode, true) : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(item.roleCode, true) : '暂不可互动'}</button></div></div>`).join('') || `<div class="empty-state"><div class="empty-title">当前筛选下还没人出现</div><div class="small">${state.filterRoleCode ? '可以先切回全部角色，或换一个角色筛选再看看。' : '可以先切换角色、重新定位，或稍后再看。'}</div></div>`}</div>
     `
   } else if (state.activeTab === 'roles') {
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)
@@ -1031,7 +1045,7 @@ function renderNotice() {
 }
 
 function openComposer(target, toUserId, roleCode = '') {
-  state.composer = { target, toUserId, roleCode, message: '你好，想认识一下' }
+  state.composer = { target, toUserId, roleCode, message: roleGreeting(roleCode, target) }
   renderComposer()
 }
 
@@ -1069,8 +1083,8 @@ function renderComposer() {
   host.innerHTML = `
     <div class="composer-mask" id="composerMask">
       <div class="composer-card">
-        <div class="sheet-title">发起互动</div>
-        <div class="sheet-sub">给 ${state.composer.target} 留一句话，对方会在互动记录里看到。</div>
+        <div class="sheet-title">${roleActionText(state.composer.roleCode || '', true)}</div>
+        <div class="sheet-sub">给 ${state.composer.target} 留一句更自然的开场白，对方会在互动记录里看到。</div>
         <textarea id="composerMessage" class="composer-textarea" placeholder="写一句打招呼的话">${state.composer.message || ''}</textarea>
         <div class="composer-actions">
           <button class="ghost-btn ghost-btn-soft btn-secondary" id="cancelComposer" ${isLoading('interact') ? 'disabled' : ''}>取消</button>
