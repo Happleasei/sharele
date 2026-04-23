@@ -758,6 +758,28 @@ function getLegendRoles() {
   return [selected?.code || 'visitor']
 }
 
+function getMapStateSummary() {
+  if (!state.token) {
+    return '当前为游客浏览模式，优先展示附近可浏览的路人视图。'
+  }
+  const activeRole = state.roles.find(r => Number(r.id) === Number(state.primaryRoleId || state.selectedRoles?.[0]))
+  if (!activeRole) {
+    return '你还没有选主角色，因此地图不会聚焦到明确人群。'
+  }
+  if (state.filterRoleCode) {
+    const filteredRole = state.roles.find(r => r.code === state.filterRoleCode) || FALLBACK_ROLES.find(r => r.code === state.filterRoleCode)
+    return `当前筛选为 ${filteredRole?.name || '指定角色'}，地图只显示这一类角色。`
+  }
+  const family = resolveVisibleFamily()
+  const familyMap = {
+    'image-service': '当前优先展示影像协作类角色，例如摄影、妆造、模特。',
+    'food-service': '当前优先展示吃喝相关角色，例如小吃摊和吃货同好。',
+    'outdoor': '当前优先展示户外同好，例如骑友和登山客。',
+    'visitor': '当前是游客态，只展示基础可浏览角色。'
+  }
+  return familyMap[family] || '当前展示附近可见角色。'
+}
+
 function renderTopBar() {
   const el = document.getElementById('topBar')
   if (!el) return
@@ -766,6 +788,7 @@ function renderTopBar() {
   const roleLabel = activeRole ? activeRole.name : '未选择角色'
   const nearbyCount = (state.nearby1km || []).length
   const legendRoles = getLegendRoles()
+  const mapStateSummary = getMapStateSummary()
   const legendHtml = legendRoles.map(code => {
     const visual = roleVisual(code)
     const role = state.roles.find(r => r.code === code) || FALLBACK_ROLES.find(r => r.code === code) || { name: code || '角色' }
@@ -786,6 +809,7 @@ function renderTopBar() {
         <span class="hero-pill ${state.apiReady ? 'hero-pill-live' : 'hero-pill-offline'}">${state.apiReady ? `后端在线 · ${apiBase}` : '离线浏览模式'}</span>
         <span class="hero-pill">地图引擎：${window.AMap && typeof window.AMap.Map === 'function' ? '高德' : 'Leaflet'}</span>
       </div>
+      <div class="map-state-copy">${mapStateSummary}</div>
       <div class="role-legend-row"><span class="legend-title">当前可见角色</span>${legendHtml}</div>
     </div>
     <div class="top-right">
