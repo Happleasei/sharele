@@ -864,13 +864,12 @@ function renderSheet() {
       <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">先看地图，再从列表里快速挑人、飞点、互动。</div></div></div>
       <div class="nearby-filter-row"><button class="role-quick-chip ${!state.filterRoleCode ? 'active' : ''}" data-filter-role="">全部</button>${state.roles.map(r => `<button class="role-quick-chip ${roleVisual(r.code).cls} ${state.filterRoleCode === r.code ? 'active' : ''}" data-filter-role="${r.code}">${roleVisual(r.code).emoji} ${r.name}</button>`).join('')}</div>
       ${nearbyGuide}
-      ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">当前是离线浏览模式</div><div class="small">地图、角色和页面结构可继续查看；登录、实名、资料保存、互动发送需等待后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyLogin">先看我的页</button></div>' : ''}
+      ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">当前是离线浏览模式</div><div class="small">地图和角色仍可浏览，登录、实名、资料保存、互动发送需等待后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyLogin">先看我的页</button></div>' : ''}
       <div class="stats-strip compact-stats-strip">
         <div class="stat-card slim"><strong>${state.nearby1km.length}</strong><span>附近人数</span></div>
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="focused-role-copy">${roleNarrative(currentFocused.roleCode).nearby}</div><div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-role-code="${currentFocused.roleCode || ''}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(currentFocused.roleCode, true) : '暂不可互动'}</button></div></div>` : ''}
       <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(item.roleCode, true) : '暂不可互动'}</button></div></div>`).join('') || `<div class="empty-state"><div class="empty-title">当前筛选下还没人出现</div><div class="small">${state.filterRoleCode ? '可以先切回全部角色，或换一个角色筛选再看看。' : '可以先切换角色、重新定位，或稍后再看。'}</div></div>`}</div>
     `
   } else if (state.activeTab === 'roles') {
@@ -896,9 +895,7 @@ function renderSheet() {
     const selectedNarrative = roleNarrative(selectedRole?.code || '')
     content = `
       <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">选一个当前主角色，用来决定你优先看到哪类人群。</div></div></div>
-      ${!state.token ? '<div class="guide-card compact"><div><div class="guide-title">先登录，才能保存角色</div><div class="small">登录后角色选择才会真正生效。</div></div><button class="primary-btn btn-main" id="jumpToMyFromRoles">去登录</button></div>' : ''}
-      ${!state.apiReady ? '<div class="guide-card compact guide-card-warning"><div><div class="guide-title">角色页当前为预览态</div><div class="small">你可以先挑选和比较角色，但真正保存要等后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyFromRoles">先看账户信息</button></div>' : ''}
-      ${state.token && meUser.verifyStatus !== 'approved' ? '<div class="guide-card compact"><div><div class="guide-title">建议先完成实名</div><div class="small">实名后你不仅能展示角色，还能直接发起互动。</div></div><button class="primary-btn btn-main" id="jumpToVerifyFromRoles">去实名</button></div>' : ''}
+      ${!state.token ? '<div class="guide-card compact"><div><div class="guide-title">先登录，才能保存角色</div><div class="small">登录后角色选择才会真正生效。</div></div><button class="primary-btn btn-main" id="jumpToMyFromRoles">去登录</button></div>' : (state.token && meUser.verifyStatus !== 'approved' ? '<div class="guide-card compact"><div><div class="guide-title">建议先完成实名</div><div class="small">实名后你不仅能展示角色，还能直接发起互动。</div></div><button class="primary-btn btn-main" id="jumpToVerifyFromRoles">去实名</button></div>' : (!state.apiReady ? '<div class="guide-card compact guide-card-warning"><div><div class="guide-title">角色页当前为预览态</div><div class="small">你可以先挑选和比较角色，但真正保存要等后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyFromRoles">先看账户信息</button></div>' : ''))}
       <div class="role-toolbar compact-role-toolbar">
         <div class="role-filter-chips">
           <button class="role-filter-chip ${roleFilter==='all'?'active':''}" data-role-filter="all">全部</button>
@@ -941,7 +938,6 @@ function renderSheet() {
               <div class="completion-value">${profileCompletionText}</div>
               <div class="small">补齐头像、简介、实名和角色后，地图与互动体验会更完整。</div>
             </div>
-            <button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileChecklist">查看待补齐项</button>
           </div>
           <div class="account-command-panel ${activeRoleVisual.cls}">
             <div class="account-command-head">
@@ -994,7 +990,6 @@ function renderSheet() {
             </div>
             <div class="account-next-foot">${activeRole ? `${activeRoleVisual.emoji} ${activeRole.name} 角色已就位，接下来可以直接回到地图找人。` : '补齐主角色后，地图会更懂你应该看到谁。'} </div>
           </div>
-          ${(!hasPrimaryRole || meUser.verifyStatus !== 'approved') ? `<div class="setup-checklist compact-checklist"><div class="checklist-head"><div class="sheet-sub">快速补齐</div><div class="small">还差几步就能完整使用 sharele</div></div><div class="checklist-grid checklist-grid-inline"><div class="check-item ${state.token ? 'done' : ''}">1. 登录</div><div class="check-item ${meUser.verifyStatus === 'approved' ? 'done' : ''}">2. 实名</div><div class="check-item ${hasPrimaryRole ? 'done' : ''}">3. 选角色</div></div></div>` : ''}
         </div>
       ` : `
         <div class="login-card auth-card">
