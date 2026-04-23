@@ -82,6 +82,15 @@ function authHeaders() {
   return state.token ? { Authorization: `Bearer ${state.token}` } : {}
 }
 
+function requireApiReady(actionLabel = '该操作') {
+  if (state.apiReady) return true
+  state.activeTab = state.activeTab || 'nearby'
+  state.sheetOpen = true
+  showNotice(`${actionLabel} 依赖后端服务，当前处于离线浏览模式，请稍后再试。`, 'error')
+  renderUI()
+  return false
+}
+
 async function probeApiBase() {
   for (const base of API_CANDIDATES) {
     try {
@@ -614,6 +623,7 @@ function renderSheet() {
     content = `
       <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">先看地图，再从列表里快速挑人、飞点、互动。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
       ${nearbyGuide}
+      ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">当前是离线浏览模式</div><div class="small">地图、角色和页面结构可继续查看；登录、实名、资料保存、互动发送需等待后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyLogin">先看我的页</button></div>' : ''}
       <div class="stats-strip compact-stats-strip">
         <div class="stat-card slim"><strong>${state.nearby1km.length}</strong><span>附近人数</span></div>
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
@@ -643,6 +653,7 @@ function renderSheet() {
     content = `
       <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">选一个当前主角色，用来决定你优先看到哪类人群。</div></div></div>
       ${!state.token ? '<div class="guide-card compact"><div><div class="guide-title">先登录，才能保存角色</div><div class="small">登录后角色选择才会真正生效。</div></div><button class="primary-btn btn-main" id="jumpToMyFromRoles">去登录</button></div>' : ''}
+      ${!state.apiReady ? '<div class="guide-card compact guide-card-warning"><div><div class="guide-title">角色页当前为预览态</div><div class="small">你可以先挑选和比较角色，但真正保存要等后端恢复。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="jumpToMyFromRoles">先看账户信息</button></div>' : ''}
       ${state.token && meUser.verifyStatus !== 'approved' ? '<div class="guide-card compact"><div><div class="guide-title">建议先完成实名</div><div class="small">实名后你不仅能展示角色，还能直接发起互动。</div></div><button class="primary-btn btn-main" id="jumpToVerifyFromRoles">去实名</button></div>' : ''}
       <div class="role-toolbar compact-role-toolbar">
         <div class="role-filter-chips">
@@ -675,6 +686,7 @@ function renderSheet() {
       <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料和互动入口都收在这里。</div></div></div>
       ${state.token ? `
         <div class="my-grid compact-my-grid">
+          ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">账户操作暂不可提交</div><div class="small">当前后端未连接，资料编辑、实名、互动记录只支持查看引导，不会真正写入。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileChecklist">查看待完善项</button></div>' : ''}
           <div class="completion-panel">
             <div>
               <div class="selection-label">资料完成度</div>
@@ -931,6 +943,7 @@ function bindActions() {
   })
 
   $('jumpToVerify')?.addEventListener('click', () => {
+    if (!requireApiReady('实名认证')) return
     state.activeTab = 'my'
     setSubPanel(
       '实名认证',
@@ -947,6 +960,7 @@ function bindActions() {
   })
 
   $('jumpToVerifyFromRoles')?.addEventListener('click', () => {
+    if (!requireApiReady('实名认证')) return
     state.activeTab = 'my'
     setSubPanel(
       '实名认证',
@@ -961,6 +975,7 @@ function bindActions() {
 
   $('submitAuth')?.addEventListener('click', async () => {
     try {
+      if (!requireApiReady(state.authMode === 'register' ? '注册' : '登录')) return
       const phone = $('phone').value.trim()
       const password = $('password').value
       const nickname = $('nickname') ? $('nickname').value.trim() : ''
@@ -1027,6 +1042,7 @@ function bindActions() {
   })
 
   $('openInteractionsInMy')?.addEventListener('click', async () => {
+    if (!requireApiReady('查看互动记录')) return
     state.interactions = await request('/interactions/my', { headers: authHeaders() }).catch(() => [])
     const currentUserId = Number(state.me?.user?.id || 0)
     const sent = (state.interactions || []).filter(it => Number(it.fromUserId || 0) === currentUserId || !it.fromUserId)
@@ -1046,6 +1062,7 @@ function bindActions() {
   })
 
   $('openVerify')?.addEventListener('click', () => {
+    if (!requireApiReady('实名认证')) return
     setSubPanel(
       '实名认证',
       '完成实名后，才能对附近的人发起互动。',
@@ -1055,6 +1072,7 @@ function bindActions() {
   })
 
   $('openProfile')?.addEventListener('click', () => {
+    if (!requireApiReady('资料编辑')) return
     const meUser = (state.me && state.me.user) || {}
     setSubPanel(
       '资料设置',
@@ -1087,6 +1105,7 @@ function bindActions() {
 
   $('verify')?.addEventListener('click', async () => {
     try {
+      if (!requireApiReady('实名认证')) return
       const realName = String($('realName')?.value || '').trim()
       const idCardNo = String($('idCardNo')?.value || '').trim()
       if (!realName || !idCardNo) {
@@ -1129,6 +1148,7 @@ function bindActions() {
 
   $('saveProfile')?.addEventListener('click', async () => {
     try {
+      if (!requireApiReady('资料保存')) return
       const payload = {
         nickname: String($('pNickname')?.value || '').trim(),
         avatarUrl: String($('pAvatar')?.value || '').trim(),
@@ -1167,6 +1187,7 @@ function bindActions() {
   })
 
   $('openProfileFromChecklist')?.addEventListener('click', () => {
+    if (!requireApiReady('资料编辑')) return
     const meUser = (state.me && state.me.user) || {}
     setSubPanel(
       '资料设置',
@@ -1177,6 +1198,7 @@ function bindActions() {
   })
 
   $('openVerifyFromChecklist')?.addEventListener('click', () => {
+    if (!requireApiReady('实名认证')) return
     setSubPanel(
       '实名认证',
       '完成实名后，才能对附近的人发起互动。',
@@ -1209,6 +1231,7 @@ function bindActions() {
 
   $('saveRoles')?.addEventListener('click', async () => {
     try {
+      if (!requireApiReady('角色保存')) return
       const primaryRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0) || null
       if (!primaryRoleId) {
         showNotice('请先选择角色', 'error')
@@ -1273,6 +1296,10 @@ function bindActions() {
     btn.addEventListener('click', async (e) => {
       const target = e.currentTarget.getAttribute('data-target') || 'TA'
       const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
+      if (!state.apiReady) {
+        showNotice('互动功能依赖后端服务，当前仅支持离线浏览。', 'error')
+        return
+      }
       if (!state.token) {
         state.activeTab = 'my'
         renderUI()
@@ -1345,6 +1372,7 @@ function bindActions() {
   })
 
   $('submitComposer')?.addEventListener('click', async () => {
+    if (!requireApiReady('发起互动')) return
     const message = String($('composerMessage')?.value || '').trim()
     if (!state.composer?.toUserId) {
       closeComposer()

@@ -12,6 +12,9 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+let schemaReady = false
+let schemaInitError = null
+
 async function ensureColumn(tableName, columnName, definitionSql) {
   const [rows] = await pool.query(
     `SELECT COUNT(*) AS count
@@ -44,10 +47,36 @@ async function ensureSchema() {
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1')
-    res.json({ ok: true, db: true })
-  } catch {
-    res.status(500).json({ ok: false, db: false })
+    res.json({
+      ok: true,
+      app: true,
+      db: true,
+      schemaReady,
+      startupError: schemaInitError ? String(schemaInitError.message || schemaInitError) : null,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    res.status(200).json({
+      ok: false,
+      app: true,
+      db: false,
+      schemaReady,
+      startupError: schemaInitError ? String(schemaInitError.message || schemaInitError) : String(error?.message || error || 'db unavailable'),
+      timestamp: new Date().toISOString()
+    })
   }
+})
+
+app.get('/ready', (_req, res) => {
+  if (schemaReady) {
+    return res.json({ ok: true, ready: true, timestamp: new Date().toISOString() })
+  }
+  return res.status(503).json({
+    ok: false,
+    ready: false,
+    startupError: schemaInitError ? String(schemaInitError.message || schemaInitError) : 'schema not ready',
+    timestamp: new Date().toISOString()
+  })
 })
 
 app.post('/auth/register', async (req, res) => {
@@ -209,11 +238,17 @@ app.get('/map/nearby', authRequired, async (req, res) => {
 })
 
 const port = Number(process.env.PORT || 3000)
-ensureSchema()
-  .then(() => {
-    app.listen(port, () => console.log(`sharele backend running at http://localhost:${port}`))
-  })
-  .catch((err) => {
-    console.error('schema init failed', err)
-    process.exit(1)
-  })
+
+app.listen(port, async () => {
+  console.log(`sharele backend running at http://localhost:${port}`)
+  try {
+    await ensureSchema()
+    schemaReady = true
+    schemaInitError = null
+    console.log('sharele schema ready')
+  } catch (err) {
+    schemaReady = false
+    schemaInitError = err
+    console.error('sharele schema init failed', err)
+  }
+})

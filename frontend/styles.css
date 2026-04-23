@@ -459,6 +459,17 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
 .guide-card.compact {
   padding: 12px 14px;
 }
+.guide-card-warning {
+  border-color: rgba(245,158,11,.28);
+  background: linear-gradient(145deg, rgba(255,251,235,.98), rgba(255,247,237,.94));
+  box-shadow: 0 12px 24px rgba(245,158,11,.10);
+}
+.guide-card-warning .guide-title {
+  color: #9a3412;
+}
+.guide-card-warning .small {
+  color: #92400e;
+}
 .guide-title {
   font-size: 15px;
   font-weight: 800;
