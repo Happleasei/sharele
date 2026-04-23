@@ -655,7 +655,7 @@ function renderMapOverlays() {
         bindActions()
         const info = new window.AMap.InfoWindow({
           offset: new window.AMap.Pixel(0, -28),
-          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div><button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${roleActionText(item.roleCode, state.canInteract)}</button></div>`
         })
         info.open(state.map, [lng, lat])
       })
@@ -712,7 +712,7 @@ function renderMapOverlays() {
           ${renderPersonSnippet({ ...item, roleName: `${visual.emoji} ${item.roleName || '未设置角色'}` }, { statusText: '地图定位中' })}
         </div>
         <div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div>
-        <button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button>
+        <button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${roleActionText(item.roleCode, state.canInteract)}</button>
       </div>
     `)
     marker.on('popupopen', () => {
@@ -733,6 +733,21 @@ function renderMapOverlays() {
     state.markerMap[String(item.id)] = marker
   })
   state.map.invalidateSize()
+}
+
+function roleActionText(roleCode = '', canInteract = true) {
+  if (!canInteract) return '仅可查看'
+  const map = {
+    photographer: '约拍',
+    makeup: '约妆',
+    model: '约搭档',
+    snack: '去看看',
+    foodie: '约吃',
+    cyclist: '约骑',
+    hiker: '约徒步',
+    visitor: '先看看'
+  }
+  return map[roleCode] || '发起互动'
 }
 
 function renderTopBar() {
@@ -795,8 +810,8 @@ function renderSheet() {
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="focused-role-copy">${roleNarrative(currentFocused.roleCode).nearby}</div><div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
+      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="focused-role-copy">${roleNarrative(currentFocused.roleCode).nearby}</div><div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-role-code="${currentFocused.roleCode || ''}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(currentFocused.roleCode, true) : '暂不可互动'}</button></div></div>` : ''}
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(item.roleCode, true) : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)
@@ -945,8 +960,8 @@ function renderNotice() {
   host.innerHTML = `<div class="app-notice ${state.notice.tone || 'info'}"><div class="app-notice-title">${state.notice.tone === 'error' ? '操作失败' : state.notice.tone === 'success' ? '已完成' : '提示'}</div><div class="small">${state.notice.message}</div></div>`
 }
 
-function openComposer(target, toUserId) {
-  state.composer = { target, toUserId, message: '你好，想认识一下' }
+function openComposer(target, toUserId, roleCode = '') {
+  state.composer = { target, toUserId, roleCode, message: '你好，想认识一下' }
   renderComposer()
 }
 
@@ -1470,6 +1485,7 @@ function bindActions() {
     btn.addEventListener('click', async (e) => {
       const target = e.currentTarget.getAttribute('data-target') || 'TA'
       const toUserId = Number(e.currentTarget.getAttribute('data-id') || 0)
+      const roleCode = String(e.currentTarget.getAttribute('data-role-code') || '')
       if (!state.apiReady) {
         showNotice('互动功能依赖后端服务，当前仅支持离线浏览。', 'error')
         return
@@ -1497,7 +1513,7 @@ function bindActions() {
         showNotice('请先选择角色，再发起互动', 'error')
         return
       }
-      openComposer(target, toUserId)
+      openComposer(target, toUserId, roleCode)
       bindActions()
     })
   })
@@ -1558,6 +1574,7 @@ function bindActions() {
       renderComposer()
       const targetName = state.composer.target
       const toUserId = state.composer.toUserId
+      const roleCode = state.composer.roleCode || ''
       await request('/interactions', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ toUserId, message }) })
       state.interactions = [
         {
@@ -1569,7 +1586,7 @@ function bindActions() {
         },
         ...(state.interactions || [])
       ]
-      state.interactionToast = `已向 ${targetName} 发起互动`
+      state.interactionToast = `${roleActionText(roleCode, true)}已发送给 ${targetName}`
       renderInteractionToast()
       const currentUserId = Number(state.me?.user?.id || 0)
       const sent = (state.interactions || []).filter(it => Number(it.fromUserId || 0) === currentUserId || !it.fromUserId)
