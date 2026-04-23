@@ -936,7 +936,7 @@ function renderSheet() {
       <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料和互动入口都收在这里。</div></div></div>
       ${state.token ? `
         <div class="my-grid compact-my-grid">
-          ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">账户操作暂不可提交</div><div class="small">当前后端未连接，资料编辑、实名、互动记录只支持查看引导，不会真正写入。</div></div><button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileChecklist">查看待完善项</button></div>' : ''}
+          ${!state.apiReady ? '<div class="guide-card guide-card-warning"><div><div class="guide-title">账户操作暂不可提交</div><div class="small">当前后端未连接，资料编辑、实名、互动记录不会真正写入，先看地图与角色即可。</div></div></div>' : ''}
           <div class="completion-panel">
             <div>
               <div class="selection-label">资料完成度</div>
@@ -981,8 +981,7 @@ function renderSheet() {
             </div>
           </div>
           <div class="quick-actions quick-actions-toolbar">
-            <button class="ghost-btn ghost-btn-soft toolbar-btn" id="openProfile">资料设置</button>
-            <button class="ghost-btn ghost-btn-soft toolbar-btn" id="openInteractionsInMy">互动记录</button>
+            ${state.apiReady ? '<button class="ghost-btn ghost-btn-soft toolbar-btn" id="openProfile">资料设置</button><button class="ghost-btn ghost-btn-soft toolbar-btn" id="openInteractionsInMy">互动记录</button>' : ''}
             <button class="ghost-btn ghost-btn-soft toolbar-btn" id="geoLocateFromMy">重新定位</button>
             <button class="ghost-btn ghost-btn-soft danger-soft toolbar-btn" id="logout">退出登录</button>
           </div>
