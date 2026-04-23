@@ -834,6 +834,12 @@ function renderTopBar() {
   `
 }
 
+function getSheetModeClass() {
+  if (state.activeTab === 'nearby') return 'sheet-nearby'
+  if (state.activeTab === 'roles') return 'sheet-roles'
+  return 'sheet-my'
+}
+
 function renderSheet() {
   const el = document.getElementById('sheet')
   if (!el) return
@@ -1007,7 +1013,7 @@ function renderSheet() {
     `
   }
 
-  el.className = `bottom-sheet ${state.sheetOpen ? 'open' : ''}`
+  el.className = `bottom-sheet ${getSheetModeClass()} ${state.sheetOpen ? 'open' : ''}`
   el.innerHTML = `<div class="sheet-handle" id="toggleSheet"><span class="sheet-handle-bar"></span><span class="sheet-handle-text">${state.sheetOpen ? '收起' : '展开'} ${state.activeTab === 'nearby' ? '附近' : (state.activeTab === 'roles' ? '角色' : '我的')}</span></div><div class="sheet-content">${content}</div>`
 
   if (state.activeTab === 'roles') {
