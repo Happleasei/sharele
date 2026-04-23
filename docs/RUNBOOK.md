@@ -66,6 +66,20 @@ curl http://127.0.0.1:3000/ready
 ```bash
 pm2 list
 pm2 logs sharele-backend --lines 100
+pm2 restart sharele-backend
+```
+
+首次接入 PM2：
+```powershell
+cd D:\webDevelop\sharele\backend
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+项目内也提供了脚本：
+```powershell
+D:\webDevelop\sharele\backend\scripts\start-pm2.ps1
+D:\webDevelop\sharele\backend\scripts\restart-pm2.ps1
 ```
 
 如果使用 Docker：

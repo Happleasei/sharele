@@ -55,6 +55,20 @@ window.__SHARELE_CONFIG__ = {
 
 详见：`docs/RUNBOOK.md`
 
+## PM2 持续运行（推荐）
+
+如果要避免临时终端关闭后后端进程被杀，推荐用 PM2：
+
+```powershell
+cd D:\webDevelop\sharele\backend
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+项目内脚本：
+- `backend/scripts/start-pm2.ps1`
+- `backend/scripts/restart-pm2.ps1`
+
 ## 文档
 - `docs/PRD.md`：产品需求草案
 - `docs/ARCHITECTURE.md`：架构与数据模型草案
