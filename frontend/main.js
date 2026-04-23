@@ -917,7 +917,7 @@ function renderSheet() {
           <strong>${state.roles.find(r => Number(r.id) === selectedRoleId)?.name || '未设置'}</strong>
           <div class="small role-selection-copy">${selectedRoleId ? (roleHintMap[state.roles.find(r => Number(r.id) === selectedRoleId)?.code] || '保存后，附近地图会优先展示与你当前角色更相关的人群。') : '保存后，附近地图会优先展示与你当前角色更相关的人群。'}</div>
         </div>
-        ${canEditRoles ? `<button id="saveRoles" class="primary-btn btn-main role-save-btn" ${selectedRoleId && !isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>` : ''}
+        ${canEditRoles && selectedRoleId ? `<button id="saveRoles" class="primary-btn btn-main role-save-btn" ${!isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>` : ''}
       </div>
     `
   } else {
