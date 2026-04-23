@@ -655,7 +655,7 @@ function renderMapOverlays() {
         bindActions()
         const info = new window.AMap.InfoWindow({
           offset: new window.AMap.Pixel(0, -28),
-          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div><button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${roleActionText(item.roleCode, state.canInteract)}</button></div>`
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">${roleNarrative(item.roleCode).nearby}${state.canInteract ? ' · 点击下方可继续互动' : ''}</div>${state.canInteract ? `<button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}">${roleActionText(item.roleCode, true)}</button>` : ''}</div>`
         })
         info.open(state.map, [lng, lat])
       })
@@ -712,7 +712,7 @@ function renderMapOverlays() {
           ${renderPersonSnippet({ ...item, roleName: `${visual.emoji} ${item.roleName || '未设置角色'}` }, { statusText: '地图定位中' })}
         </div>
         <div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div>
-        <button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${roleActionText(item.roleCode, state.canInteract)}</button>
+        ${state.canInteract ? `<button class="interact-btn" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${name}">${roleActionText(item.roleCode, true)}</button>` : ''}
       </div>
     `)
     marker.on('popupopen', () => {
@@ -840,6 +840,11 @@ function getSheetModeClass() {
   return 'sheet-my'
 }
 
+function renderInteractButton(item = {}, canInteract = false, extraClass = '') {
+  if (!canInteract || !item?.id) return ''
+  return `<button class="ghost-btn ghost-btn-soft btn-secondary interact-inline ${extraClass}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}">${roleActionText(item.roleCode, true)}</button>`
+}
+
 function renderSheet() {
   const el = document.getElementById('sheet')
   if (!el) return
@@ -870,7 +875,7 @@ function renderSheet() {
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-role-code="${item.roleCode || ''}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? roleActionText(item.roleCode, true) : '暂不可互动'}</button></div></div>`).join('') || `<div class="empty-state"><div class="empty-title">当前筛选下还没人出现</div><div class="small">${state.filterRoleCode ? '可以先切回全部角色，或换一个角色筛选再看看。' : '可以先切换角色、重新定位，或稍后再看。'}</div></div>`}</div>
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button>${renderInteractButton(item, canInteract)}</div></div>`).join('') || `<div class="empty-state"><div class="empty-title">当前筛选下还没人出现</div><div class="small">${state.filterRoleCode ? '可以先切回全部角色，或换一个角色筛选再看看。' : '可以先切换角色、重新定位，或稍后再看。'}</div></div>`}</div>
     `
   } else if (state.activeTab === 'roles') {
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)
@@ -905,14 +910,14 @@ function renderSheet() {
         <input id="roleSearch" class="sheet-input role-search" placeholder="搜索角色" value="${roleQuery}" />
       </div>
       ${selectedRole ? `<div class="role-spotlight ${selectedVisual.cls}"><div class="role-spotlight-top"><div><div class="role-spotlight-kicker">已选中角色</div><div class="role-spotlight-title">${selectedVisual.emoji} ${selectedRole.name}</div><div class="role-spotlight-desc">${selectedNarrative.vibe}</div></div><div class="role-spotlight-badge">${selectedVisual.tone}</div></div><div class="role-spotlight-grid"><div class="role-spotlight-item"><span>更适合</span><strong>${selectedNarrative.prompt}</strong></div><div class="role-spotlight-item"><span>地图优先看到</span><strong>${roleHintMap[selectedRole.code] || '与你更相关的人群'}</strong></div></div><div class="role-spotlight-note">保存后，附近地图会优先按这个角色的人群关系来组织可见用户。</div></div>` : ''}
-      <div class="role-list-shell"><div class="role-list">${filteredRoles.map(r => `<button class="role-list-item ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}" ${canEditRoles ? '' : 'disabled'}><div><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.category} · ${r.code}</div></div><div class="role-list-hint">${roleHintMap[r.code] || '保存后优先看到与你更相关的人群'}</div></button>`).join('') || '<div class="empty-state compact-empty"><div class="small">没有匹配的角色</div></div>'}</div></div>
+      <div class="role-list-shell"><div class="role-list">${filteredRoles.map(r => `<button class="role-list-item ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}"><div><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.category} · ${r.code}</div></div><div class="role-list-hint">${roleHintMap[r.code] || '保存后优先看到与你更相关的人群'}</div></button>`).join('') || '<div class="empty-state compact-empty"><div class="small">没有匹配的角色</div></div>'}</div></div>
       <div class="role-selection-bar compact-role-selection ${selectedRoleId ? 'role-selection-bar-active' : ''}">
         <div>
           <div class="selection-label">当前主角色</div>
           <strong>${state.roles.find(r => Number(r.id) === selectedRoleId)?.name || '未设置'}</strong>
           <div class="small role-selection-copy">${selectedRoleId ? (roleHintMap[state.roles.find(r => Number(r.id) === selectedRoleId)?.code] || '保存后，附近地图会优先展示与你当前角色更相关的人群。') : '保存后，附近地图会优先展示与你当前角色更相关的人群。'}</div>
         </div>
-        <button id="saveRoles" class="primary-btn btn-main role-save-btn" ${canEditRoles && selectedRoleId && !isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>
+        ${canEditRoles ? `<button id="saveRoles" class="primary-btn btn-main role-save-btn" ${selectedRoleId && !isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>` : ''}
       </div>
     `
   } else {
