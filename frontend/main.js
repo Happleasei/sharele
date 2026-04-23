@@ -1,9 +1,14 @@
+const SHARELE_CONFIG = {
+  envName: window.__SHARELE_CONFIG__?.envName || 'local',
+  apiBase: window.__SHARELE_CONFIG__?.apiBase || window.SHARELE_API_BASE || '',
+  amapKey: window.__SHARELE_CONFIG__?.amapKey || window.SHARELE_AMAP_KEY || ''
+}
+
 const API_CANDIDATES = (() => {
   const { protocol, hostname, origin } = window.location
   const localSet = ['localhost', '127.0.0.1', '0.0.0.0']
   const configured = [
-    window.SHARELE_API_BASE,
-    window.__SHARELE_CONFIG__?.apiBase,
+    SHARELE_CONFIG.apiBase,
     localStorage.getItem('sharele_api_base')
   ].filter(Boolean)
   const out = [...configured]
@@ -594,12 +599,13 @@ function renderTopBar() {
           <div class="brand">sharele-共享世界</div>
           <div class="sub">移动职业 / 兴趣角色地图</div>
         </div>
-        <div class="brand-badge">BETA</div>
+        <div class="brand-badge">${String(SHARELE_CONFIG.envName || 'local').toUpperCase()} · BETA</div>
       </div>
       <div class="hero-meta">
         <span class="hero-pill">当前角色：${roleLabel}</span>
         <span class="hero-pill">1km 内 ${nearbyCount} 人</span>
         <span class="hero-pill ${state.apiReady ? 'hero-pill-live' : 'hero-pill-offline'}">${state.apiReady ? `后端在线 · ${apiBase}` : '离线浏览模式'}</span>
+        <span class="hero-pill">地图引擎：${window.AMap && typeof window.AMap.Map === 'function' ? '高德' : 'Leaflet'}</span>
       </div>
     </div>
     <div class="top-right">
