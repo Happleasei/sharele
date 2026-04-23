@@ -871,6 +871,9 @@ function renderSheet() {
       const matchQuery = !roleQuery || `${r.name} ${r.code}`.toLowerCase().includes(roleQuery.toLowerCase())
       return matchFilter && matchQuery
     })
+    const selectedRole = state.roles.find(r => Number(r.id) === selectedRoleId) || null
+    const selectedVisual = roleVisual(selectedRole?.code || '')
+    const selectedNarrative = roleNarrative(selectedRole?.code || '')
     content = `
       <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">选一个当前主角色，用来决定你优先看到哪类人群。</div></div></div>
       ${!state.token ? '<div class="guide-card compact"><div><div class="guide-title">先登录，才能保存角色</div><div class="small">登录后角色选择才会真正生效。</div></div><button class="primary-btn btn-main" id="jumpToMyFromRoles">去登录</button></div>' : ''}
@@ -884,6 +887,7 @@ function renderSheet() {
         </div>
         <input id="roleSearch" class="sheet-input role-search" placeholder="搜索角色" value="${roleQuery}" />
       </div>
+      ${selectedRole ? `<div class="role-spotlight ${selectedVisual.cls}"><div class="role-spotlight-top"><div><div class="role-spotlight-kicker">已选中角色</div><div class="role-spotlight-title">${selectedVisual.emoji} ${selectedRole.name}</div><div class="role-spotlight-desc">${selectedNarrative.vibe}</div></div><div class="role-spotlight-badge">${selectedVisual.tone}</div></div><div class="role-spotlight-grid"><div class="role-spotlight-item"><span>更适合</span><strong>${selectedNarrative.prompt}</strong></div><div class="role-spotlight-item"><span>地图优先看到</span><strong>${roleHintMap[selectedRole.code] || '与你更相关的人群'}</strong></div></div></div>` : ''}
       <div class="role-list-shell"><div class="role-list">${filteredRoles.map(r => `<button class="role-list-item ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}" ${canEditRoles ? '' : 'disabled'}><div><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.category} · ${r.code}</div></div><div class="role-list-hint">${roleHintMap[r.code] || '保存后优先看到与你更相关的人群'}</div></button>`).join('') || '<div class="empty-state compact-empty"><div class="small">没有匹配的角色</div></div>'}</div></div>
       <div class="role-selection-bar compact-role-selection ${selectedRoleId ? 'role-selection-bar-active' : ''}">
         <div>

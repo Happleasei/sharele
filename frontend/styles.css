@@ -790,6 +790,71 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   border-color: rgba(56,189,248,.28);
   background: linear-gradient(145deg, rgba(239,246,255,.98), rgba(255,255,255,.96));
 }
+.role-spotlight {
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(56,189,248,.16);
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,246,255,.94));
+}
+.role-spotlight-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.role-spotlight-kicker {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 800;
+}
+.role-spotlight-title {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.role-spotlight-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #475569;
+}
+.role-spotlight-badge {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(15,23,42,.06);
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+.role-spotlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.role-spotlight-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.68);
+  border: 1px solid rgba(15,23,42,.05);
+}
+.role-spotlight-item span {
+  font-size: 11px;
+  color: #64748b;
+}
+.role-spotlight-item strong {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #0f172a;
+}
 .role-list-shell {
   max-height: 246px;
   overflow-y: auto;
