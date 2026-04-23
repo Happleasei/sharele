@@ -907,6 +907,9 @@ function renderSheet() {
       hasPrimaryRole
     ].filter(Boolean).length
     const profileCompletionText = `${profileCompletion}/5`
+    const activeRole = state.roles.find(r => Number(r.id) === Number(state.primaryRoleId || state.selectedRoles?.[0])) || null
+    const activeRoleVisual = roleVisual(activeRole?.code || '')
+    const activeRoleNarrative = roleNarrative(activeRole?.code || '')
     content = `
       <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料和互动入口都收在这里。</div></div></div>
       ${state.token ? `
@@ -919,6 +922,21 @@ function renderSheet() {
               <div class="small">补齐头像、简介、实名和角色后，地图与互动体验会更完整。</div>
             </div>
             <button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileChecklist">查看待补齐项</button>
+          </div>
+          <div class="account-command-panel ${activeRoleVisual.cls}">
+            <div class="account-command-head">
+              <div>
+                <div class="selection-label">当前账户状态</div>
+                <div class="account-command-title">${meUser.verifyStatus === 'approved' ? '可以进入角色地图并发起互动' : '还差一点就能完整使用地图'}</div>
+                <div class="small">${activeRole ? `${activeRoleVisual.emoji} ${activeRole.name} · ${activeRoleNarrative.prompt}` : '先补齐实名和主角色，地图才会真正进入你的角色生态。'}</div>
+              </div>
+              <div class="account-command-badge">${meUser.verifyStatus === 'approved' ? 'READY' : 'SETUP'}</div>
+            </div>
+            <div class="account-command-grid">
+              <div class="account-command-item"><span>实名状态</span><strong>${meUser.verifyStatus === 'approved' ? '已完成' : '待完成'}</strong></div>
+              <div class="account-command-item"><span>主角色</span><strong>${activeRole ? activeRole.name : '未设置'}</strong></div>
+              <div class="account-command-item"><span>地图定位</span><strong>${state.lat && state.lng ? '已开启' : '待开启'}</strong></div>
+            </div>
           </div>
           <div class="profile-panel">
             <div class="profile-hero profile-hero-light">
@@ -946,6 +964,14 @@ function renderSheet() {
             <button class="ghost-btn ghost-btn-soft toolbar-btn" id="openInteractionsInMy">互动记录</button>
             <button class="ghost-btn ghost-btn-soft toolbar-btn" id="geoLocateFromMy">重新定位</button>
             <button class="ghost-btn ghost-btn-soft danger-soft toolbar-btn" id="logout">退出登录</button>
+          </div>
+          <div class="account-next-panel">
+            <div class="selection-label">现在最适合做什么</div>
+            <div class="account-next-list">
+              <div class="account-next-item ${meUser.verifyStatus === 'approved' ? 'done' : ''}"><span>完成实名</span><em>${meUser.verifyStatus === 'approved' ? '已就绪' : '优先去做'}</em></div>
+              <div class="account-next-item ${activeRole ? 'done' : ''}"><span>确定主角色</span><em>${activeRole ? '已设置' : '优先去选'}</em></div>
+              <div class="account-next-item ${(state.lat && state.lng) ? 'done' : ''}"><span>打开定位</span><em>${(state.lat && state.lng) ? '已开启' : '建议补齐'}</em></div>
+            </div>
           </div>
           ${(!hasPrimaryRole || meUser.verifyStatus !== 'approved') ? `<div class="setup-checklist compact-checklist"><div class="checklist-head"><div class="sheet-sub">快速补齐</div><div class="small">还差几步就能完整使用 sharele</div></div><div class="checklist-grid checklist-grid-inline"><div class="check-item ${state.token ? 'done' : ''}">1. 登录</div><div class="check-item ${meUser.verifyStatus === 'approved' ? 'done' : ''}">2. 实名</div><div class="check-item ${hasPrimaryRole ? 'done' : ''}">3. 选角色</div></div></div>` : ''}
         </div>

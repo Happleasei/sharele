@@ -1334,6 +1334,85 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   color: #0f172a;
   margin: 4px 0 6px;
 }
+.account-command-panel {
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.94));
+}
+.account-command-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.account-command-title {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.account-command-badge {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(15,23,42,.06);
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+}
+.account-command-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.account-command-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(15,23,42,.05);
+}
+.account-command-item span {
+  font-size: 11px;
+  color: #64748b;
+}
+.account-command-item strong {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #0f172a;
+}
+.account-next-panel {
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.94));
+}
+.account-next-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.account-next-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,.06);
+  background: rgba(255,255,255,.68);
+}
+.account-next-item em {
+  font-style: normal;
+  font-size: 12px;
+  color: #64748b;
+}
+.account-next-item.done em {
+  color: #15803d;
+}
 .profile-panel {
   border-radius: 22px;
   border: 1px solid rgba(15,23,42,.08);
