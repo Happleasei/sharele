@@ -351,6 +351,9 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   display: grid;
   gap: 8px;
 }
+.timeline-group {
+  gap: 10px;
+}
 .interaction-group-title {
   font-size: 13px;
   font-weight: 800;
@@ -365,8 +368,43 @@ html, body, #app { width: 100%; height: 100%; margin: 0; font-family: 'Noto Sans
   border-color: rgba(34,197,94,.16);
   background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(240,253,244,.92));
 }
+.interaction-rail {
+  width: 20px;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+.interaction-rail::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(148,163,184,.08), rgba(148,163,184,.28), rgba(148,163,184,.08));
+}
+.interaction-dot {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56,189,248,.12);
+}
+.interaction-dot.received {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34,197,94,.12);
+}
+.interaction-main {
+  min-width: 0;
+}
 .interaction-caption {
-  margin-top: 4px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
 }
 .record-side {
   display: flex;
