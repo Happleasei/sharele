@@ -1,4 +1,22 @@
-const apiBase = 'http://localhost:3000'
+const API_CANDIDATES = (() => {
+  const { protocol, hostname, origin } = window.location
+  const localSet = ['localhost', '127.0.0.1', '0.0.0.0']
+  const out = []
+
+  if (localSet.includes(hostname)) {
+    out.push('http://127.0.0.1:3000')
+    out.push('http://localhost:3000')
+  } else {
+    out.push(`${protocol}//${hostname}:3000`)
+    out.push('https://shareleapi.wh1997.com')
+    out.push('http://127.0.0.1:3000')
+  }
+
+  if (!out.includes(origin)) out.push(origin)
+  return Array.from(new Set(out.filter(Boolean)))
+})()
+
+let apiBase = API_CANDIDATES[0]
 
 const VERIFY_OVERRIDE_KEY = 'sharele_verify_override'
 const FALLBACK_ROLES = [
@@ -24,6 +42,8 @@ const ROLE_FAMILY_MAP = {
 
 const state = {
   token: localStorage.getItem('sharele_token') || '',
+  apiReady: false,
+  apiProbeFailed: false,
   roles: [],
   selectedRoles: [],
   primaryRoleId: null,
@@ -48,8 +68,8 @@ const state = {
   highlightedUserId: '',
   loading: {},
   autoLocated: false,
-  activeTab: 'nearby',
-  sheetOpen: true,
+  activeTab: '',
+  sheetOpen: false,
   authMode: 'login',
   syncingNearby: false,
   mapRefreshTimer: null,
@@ -62,14 +82,44 @@ function authHeaders() {
   return state.token ? { Authorization: `Bearer ${state.token}` } : {}
 }
 
+async function probeApiBase() {
+  for (const base of API_CANDIDATES) {
+    try {
+      const res = await fetch(`${base}/health`, { method: 'GET' })
+      if (res.ok) {
+        apiBase = base
+        state.apiReady = true
+        state.apiProbeFailed = false
+        return base
+      }
+    } catch {}
+  }
+  state.apiReady = false
+  state.apiProbeFailed = true
+  return apiBase
+}
+
 async function request(path, options = {}) {
-  const res = await fetch(`${apiBase}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.message || '请求失败')
-  return data
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
+
+  try {
+    const res = await fetch(`${apiBase}${path}`, {
+      ...options,
+      headers
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message || '请求失败')
+    state.apiReady = true
+    state.apiProbeFailed = false
+    return data
+  } catch (err) {
+    if (!state.apiProbeFailed) {
+      showNotice('后端服务暂时不可用，已切换为浏览/演示模式。', 'error')
+    }
+    state.apiReady = false
+    state.apiProbeFailed = true
+    throw err
+  }
 }
 
 function roleVisual(roleCode = '') {
@@ -375,6 +425,7 @@ function renderPersonSnippet(item = {}, options = {}) {
   const distance = Number(item.distanceKm || 0).toFixed(2)
   const bio = item.bio || '这个人还没写简介'
   const showDistance = options.showDistance !== false
+  const statusText = options.statusText || ''
   return `
     <div class="person-snippet">
       <div class="person-name-row">
@@ -382,7 +433,10 @@ function renderPersonSnippet(item = {}, options = {}) {
         <div class="person-role">${role}</div>
       </div>
       <div class="person-bio">${bio}</div>
-      ${showDistance ? `<div class="person-meta">${distance} km 内</div>` : ''}
+      <div class="person-meta-row">
+        ${showDistance ? `<div class="person-meta">${distance} km 内</div>` : ''}
+        ${statusText ? `<div class="person-inline-state">${statusText}</div>` : ''}
+      </div>
     </div>
   `
 }
@@ -427,7 +481,7 @@ function renderMapOverlays() {
         bindActions()
         const info = new window.AMap.InfoWindow({
           offset: new window.AMap.Pixel(0, -28),
-          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item)}</div><div class="popup-meta">点击下方可发起互动</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">地图与列表已同步高亮 · 点击下方可发起互动</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
         })
         info.open(state.map, [lng, lat])
       })
@@ -481,9 +535,9 @@ function renderMapOverlays() {
         <div class="popup-arrow"></div>
         <div class="popup-head">
           <div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>
-          ${renderPersonSnippet({ ...item, roleName: `${visual.emoji} ${item.roleName || '未设置角色'}` })}
+          ${renderPersonSnippet({ ...item, roleName: `${visual.emoji} ${item.roleName || '未设置角色'}` }, { statusText: '地图定位中' })}
         </div>
-        <div class="popup-meta">点击下方可发起互动</div>
+        <div class="popup-meta">地图与列表已同步高亮 · 点击下方可发起互动</div>
         <button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button>
       </div>
     `)
@@ -518,7 +572,7 @@ function renderTopBar() {
     <div class="brand-chip hero-chip">
       <div class="brand-row">
         <div>
-          <div class="brand">sharele</div>
+          <div class="brand">sharele-共享世界</div>
           <div class="sub">移动职业 / 兴趣角色地图</div>
         </div>
         <div class="brand-badge">BETA</div>
@@ -526,6 +580,7 @@ function renderTopBar() {
       <div class="hero-meta">
         <span class="hero-pill">当前角色：${roleLabel}</span>
         <span class="hero-pill">1km 内 ${nearbyCount} 人</span>
+        <span class="hero-pill ${state.apiReady ? 'hero-pill-live' : 'hero-pill-offline'}">${state.apiReady ? `后端在线 · ${apiBase}` : '离线浏览模式'}</span>
       </div>
     </div>
     <div class="top-right">
@@ -555,62 +610,79 @@ function renderSheet() {
           ? `<div class="guide-card"><div><div class="guide-title">你已经进入地图，但还不能互动</div><div class="small">完成实名认证后，才能向附近的人发起互动。</div></div><button class="primary-btn btn-main" id="jumpToVerify">去实名</button></div>`
           : ''
 
+    const currentFocused = (state.nearby1km || []).find(item => String(item.id) === String(state.highlightedUserId))
     content = `
       <div class="sheet-head"><div><div class="sheet-title">附近 1km</div><div class="sheet-sub">先看地图，再从列表里快速挑人、飞点、互动。</div></div><select id="filterRole" class="sheet-select"><option value="">全部角色</option>${state.roles.map(r => `<option value="${r.code}" ${state.filterRoleCode === r.code ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
       ${nearbyGuide}
-      <div class="stats-strip">
-        <div class="stat-card"><strong>${state.nearby1km.length}</strong><span>附近人数</span></div>
-        <div class="stat-card"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
-        <div class="stat-card"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
+      <div class="stats-strip compact-stats-strip">
+        <div class="stat-card slim"><strong>${state.nearby1km.length}</strong><span>附近人数</span></div>
+        <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
+        <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item)}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
+      ${currentFocused ? `<div class="focused-person-card"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : '<div class="card-state-chip muted">点击卡片可在地图中定位</div>'}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
-    const groupedRoles = {
-      professional: state.roles.filter(r => r.category === '职业'),
-      interest: state.roles.filter(r => r.category === '兴趣')
-    }
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)
+    const roleQuery = state.roleQuery || ''
+    const roleFilter = state.roleFilter || 'all'
     const roleHintMap = {
-      photographer: '更容易看到摄影、模特、化妆等协作型角色',
-      makeup: '更容易看到化妆、模特、摄影等协作型角色',
-      model: '更容易看到摄影、化妆、模特等协作型角色',
-      snack: '更容易看到吃货、小吃摊等消费/服务型角色',
-      foodie: '更容易看到小吃摊、吃货等同类兴趣人群',
-      cyclist: '更容易看到骑友、登山客等户外同好',
-      hiker: '更容易看到登山客、骑友等户外同好'
+      photographer: '摄影/模特/化妆协作型人群',
+      makeup: '化妆/模特/摄影协作型人群',
+      model: '摄影/化妆/模特协作型人群',
+      snack: '吃货/小吃摊消费服务型人群',
+      foodie: '吃货/小吃摊兴趣同类人群',
+      cyclist: '骑友/登山客户外同好',
+      hiker: '登山客/骑友户外同好'
     }
-    const renderRoleGroup = (title, desc, list) => `
-      <div class="role-section">
-        <div class="role-section-head">
-          <div class="role-section-title">${title}</div>
-          <div class="small">${desc}</div>
-        </div>
-        <div class="role-card-grid">${list.map(r => `<button class="role-pick-card ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}" ${canEditRoles ? '' : 'disabled'}><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.code}</div><div class="role-pick-hint">${roleHintMap[r.code] || '进入地图后会优先看到与你更相关的人群'}</div></button>`).join('')}</div>
-      </div>
-    `
+    const filteredRoles = state.roles.filter(r => {
+      const matchFilter = roleFilter === 'all' || r.category === roleFilter
+      const matchQuery = !roleQuery || `${r.name} ${r.code}`.toLowerCase().includes(roleQuery.toLowerCase())
+      return matchFilter && matchQuery
+    })
     content = `
-      <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">先明确你的身份，系统才知道把你放进哪一类人群地图里。</div></div></div>
+      <div class="sheet-head"><div><div class="sheet-title">角色选择</div><div class="sheet-sub">选一个当前主角色，用来决定你优先看到哪类人群。</div></div></div>
       ${!state.token ? '<div class="guide-card compact"><div><div class="guide-title">先登录，才能保存角色</div><div class="small">登录后角色选择才会真正生效。</div></div><button class="primary-btn btn-main" id="jumpToMyFromRoles">去登录</button></div>' : ''}
       ${state.token && meUser.verifyStatus !== 'approved' ? '<div class="guide-card compact"><div><div class="guide-title">建议先完成实名</div><div class="small">实名后你不仅能展示角色，还能直接发起互动。</div></div><button class="primary-btn btn-main" id="jumpToVerifyFromRoles">去实名</button></div>' : ''}
-      <div class="role-stage">
-        ${renderRoleGroup('职业角色', '适合提供服务、接单、线下协作的人群。', groupedRoles.professional)}
-        ${renderRoleGroup('兴趣角色', '适合同好发现、结伴同行、找同类的人群。', groupedRoles.interest)}
+      <div class="role-toolbar compact-role-toolbar">
+        <div class="role-filter-chips">
+          <button class="role-filter-chip ${roleFilter==='all'?'active':''}" data-role-filter="all">全部</button>
+          <button class="role-filter-chip ${roleFilter==='职业'?'active':''}" data-role-filter="职业">职业</button>
+          <button class="role-filter-chip ${roleFilter==='兴趣'?'active':''}" data-role-filter="兴趣">兴趣</button>
+        </div>
+        <input id="roleSearch" class="sheet-input role-search" placeholder="搜索角色" value="${roleQuery}" />
       </div>
-      <div class="role-selection-bar ${selectedRoleId ? 'role-selection-bar-active' : ''}">
+      <div class="role-list-shell"><div class="role-list">${filteredRoles.map(r => `<button class="role-list-item ${selectedRoleId === Number(r.id) ? 'picked' : ''}" data-role-pick="${r.id}" ${canEditRoles ? '' : 'disabled'}><div><div class="role-pick-name">${r.name}</div><div class="role-pick-meta">${r.category} · ${r.code}</div></div><div class="role-list-hint">${roleHintMap[r.code] || '保存后优先看到与你更相关的人群'}</div></button>`).join('') || '<div class="empty-state compact-empty"><div class="small">没有匹配的角色</div></div>'}</div></div>
+      <div class="role-selection-bar compact-role-selection ${selectedRoleId ? 'role-selection-bar-active' : ''}">
         <div>
           <div class="selection-label">当前主角色</div>
           <strong>${state.roles.find(r => Number(r.id) === selectedRoleId)?.name || '未设置'}</strong>
           <div class="small role-selection-copy">${selectedRoleId ? (roleHintMap[state.roles.find(r => Number(r.id) === selectedRoleId)?.code] || '保存后，附近地图会优先展示与你当前角色更相关的人群。') : '保存后，附近地图会优先展示与你当前角色更相关的人群。'}</div>
         </div>
-        <button id="saveRoles" class="primary-btn btn-main" ${canEditRoles && selectedRoleId && !isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>
+        <button id="saveRoles" class="primary-btn btn-main role-save-btn" ${canEditRoles && selectedRoleId && !isLoading('roles') ? '' : 'disabled'}>${isLoading('roles') ? '保存中...' : '确认角色'}</button>
       </div>
     `
   } else {
+    const profileCompletion = [
+      Boolean(meUser.nickname),
+      Boolean(meUser.bio),
+      Boolean(meUser.avatarUrl),
+      meUser.verifyStatus === 'approved',
+      hasPrimaryRole
+    ].filter(Boolean).length
+    const profileCompletionText = `${profileCompletion}/5`
     content = `
       <div class="sheet-head"><div><div class="sheet-title">我的</div><div class="sheet-sub">账户、实名、资料和互动入口都收在这里。</div></div></div>
       ${state.token ? `
         <div class="my-grid compact-my-grid">
+          <div class="completion-panel">
+            <div>
+              <div class="selection-label">资料完成度</div>
+              <div class="completion-value">${profileCompletionText}</div>
+              <div class="small">补齐头像、简介、实名和角色后，地图与互动体验会更完整。</div>
+            </div>
+            <button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileChecklist">查看待补齐项</button>
+          </div>
           <div class="profile-panel">
             <div class="profile-hero profile-hero-light">
               <div class="account-avatar account-avatar-large">${meUser.avatarUrl ? `<img src="${meUser.avatarUrl}" alt="me" />` : `<span>${(meUser.nickname || '我').slice(0,1)}</span>`}</div>
@@ -766,11 +838,42 @@ function renderTabbar() {
   const el = document.getElementById('tabbar')
   if (!el) return
   const tabs = [
-    { key: 'nearby', label: '附近', icon: '🧭' },
-    { key: 'roles', label: '角色', icon: '🏷️' },
-    { key: 'my', label: '我的', icon: '👤' }
+    {
+      key: 'nearby',
+      label: '附近',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 1 1 12 0c0 5.5-6 11-6 11Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>'
+    },
+    {
+      key: 'roles',
+      label: '角色',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M7 12h10"></path><path d="M10 17h4"></path><rect x="3" y="4" width="18" height="16" rx="3"></rect></svg>'
+    },
+    {
+      key: 'my',
+      label: '我的',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>'
+    }
   ]
-  el.innerHTML = tabs.map(tab => `<button class="tab-btn ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}"><span>${tab.icon}</span><em>${tab.label}</em></button>`).join('')
+  el.innerHTML = `
+    <div class="tabbar-shell">
+      <div class="tabbar-group">
+        <div class="tabbar-subgroup">
+          ${tabs.slice(0, 2).map(tab => `<button class="tab-pill ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
+        </div>
+        <div class="tabbar-divider"></div>
+        <div class="tabbar-subgroup">
+          ${tabs.slice(2).map(tab => `<button class="tab-pill ${state.activeTab===tab.key?'active':''}" data-tab="${tab.key}" aria-label="${tab.label}"><span class="tab-pill-icon">${tab.icon}</span><em>${tab.label}</em></button>`).join('')}
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function ensureHighlightedVisible() {
+  if (!state.highlightedUserId) return
+  const target = document.querySelector(`[data-fly-id="${state.highlightedUserId}"]`)
+  if (!target) return
+  target.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 function renderUI() {
@@ -783,6 +886,7 @@ function renderUI() {
   renderComposer()
   renderMapOverlays()
   bindActions()
+  ensureHighlightedVisible()
 }
 
 function bindActions() {
@@ -790,14 +894,20 @@ function bindActions() {
 
   $('toggleSheet')?.addEventListener('click', () => {
     state.sheetOpen = !state.sheetOpen
+    if (!state.sheetOpen) state.activeTab = ''
     renderUI()
   })
 
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tab = btn.getAttribute('data-tab')
-      state.activeTab = tab
-      state.sheetOpen = true
+      if (state.activeTab === tab && state.sheetOpen) {
+        state.sheetOpen = false
+        state.activeTab = ''
+      } else {
+        state.activeTab = tab
+        state.sheetOpen = true
+      }
       renderUI()
     })
   })
@@ -954,6 +1064,27 @@ function bindActions() {
     renderUI()
   })
 
+  $('openProfileChecklist')?.addEventListener('click', () => {
+    const meUser = (state.me && state.me.user) || {}
+    const hasRole = Boolean(state.primaryRoleId || state.selectedRoles?.length)
+    setSubPanel(
+      '资料完善建议',
+      '把这些项补齐后，别人会更容易理解你是谁，也更愿意和你互动。',
+      `<div class="completion-list">
+        <div class="completion-item ${meUser.nickname ? 'done' : ''}"><span>昵称</span><em>${meUser.nickname ? '已完成' : '待完善'}</em></div>
+        <div class="completion-item ${meUser.bio ? 'done' : ''}"><span>一句话介绍</span><em>${meUser.bio ? '已完成' : '待完善'}</em></div>
+        <div class="completion-item ${meUser.avatarUrl ? 'done' : ''}"><span>头像</span><em>${meUser.avatarUrl ? '已完成' : '待完善'}</em></div>
+        <div class="completion-item ${meUser.verifyStatus === 'approved' ? 'done' : ''}"><span>实名认证</span><em>${meUser.verifyStatus === 'approved' ? '已完成' : '待完善'}</em></div>
+        <div class="completion-item ${hasRole ? 'done' : ''}"><span>主角色</span><em>${hasRole ? '已完成' : '待完善'}</em></div>
+      </div>
+      <div class="completion-actions">
+        <button class="ghost-btn ghost-btn-soft btn-secondary" id="openProfileFromChecklist">去完善资料</button>
+        ${meUser.verifyStatus !== 'approved' ? '<button class="primary-btn btn-main" id="openVerifyFromChecklist">去实名</button>' : ''}
+      </div>`
+    )
+    renderUI()
+  })
+
   $('verify')?.addEventListener('click', async () => {
     try {
       const realName = String($('realName')?.value || '').trim()
@@ -1033,6 +1164,37 @@ function bindActions() {
       setLoading('profile', false)
       renderUI()
     }
+  })
+
+  $('openProfileFromChecklist')?.addEventListener('click', () => {
+    const meUser = (state.me && state.me.user) || {}
+    setSubPanel(
+      '资料设置',
+      '头像、昵称和一句话介绍会直接影响别人是否愿意点开你。',
+      `<div class="form-grid stacked-form"><input id="pNickname" class="sheet-input" placeholder="昵称" value="${meUser.nickname || ''}" /><input id="pAvatar" class="sheet-input" placeholder="头像URL（http/https）" value="${meUser.avatarUrl || ''}" /><input id="pBio" class="sheet-input" placeholder="一句话介绍" value="${meUser.bio || ''}" /><select id="pGender" class="sheet-select"><option value="">性别(可选)</option><option value="male" ${meUser.gender==='male'?'selected':''}>男</option><option value="female" ${meUser.gender==='female'?'selected':''}>女</option></select><button id="saveProfile" class="primary-btn" ${isLoading('profile') ? 'disabled' : ''}>${isLoading('profile') ? '保存中...' : '保存资料'}</button></div>`
+    )
+    renderUI()
+  })
+
+  $('openVerifyFromChecklist')?.addEventListener('click', () => {
+    setSubPanel(
+      '实名认证',
+      '完成实名后，才能对附近的人发起互动。',
+      `<div class="form-grid stacked-form"><input id="realName" class="sheet-input" placeholder="真实姓名" value="${state.me?.user?.realName || ''}" /><input id="idCardNo" class="sheet-input" placeholder="身份证号" /><button id="verify" class="primary-btn" ${isLoading('verify') ? 'disabled' : ''}>${isLoading('verify') ? '提交中...' : '提交实名'}</button></div>`
+    )
+    renderUI()
+  })
+
+  document.querySelectorAll('[data-role-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.roleFilter = btn.getAttribute('data-role-filter') || 'all'
+      renderUI()
+    })
+  })
+
+  $('roleSearch')?.addEventListener('input', (e) => {
+    state.roleQuery = String(e.target.value || '')
+    renderUI()
   })
 
   document.querySelectorAll('[data-role-pick]').forEach(btn => {
@@ -1298,6 +1460,7 @@ async function loadMe() {
 async function bootstrap() {
   mountShell()
   initMap()
+  await probeApiBase()
   const [roles] = await Promise.all([
     request('/roles').catch(() => []),
     loadMe()
@@ -1313,6 +1476,9 @@ async function bootstrap() {
     state.nearby = await request(`/map/nearby${query}`, { headers: authHeaders() }).catch(() => [])
   }
   if (!state.nearby || !state.nearby.length) state.nearby = generateMockNearbyByRoles()
+  if (!state.apiReady) {
+    showNotice('当前已进入离线浏览模式：地图和角色可继续看，登录/认证/互动需等后端恢复。', 'info')
+  }
   renderUI()
 }
 
