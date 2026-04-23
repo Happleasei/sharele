@@ -250,6 +250,56 @@ function roleVisual(roleCode = '') {
   }
 }
 
+function roleNarrative(roleCode = '') {
+  const map = {
+    photographer: {
+      vibe: '偏出片、构图、拍摄配合',
+      prompt: '适合约拍、互拍、补作品集',
+      nearby: '更适合在附近快速找到拍摄搭子'
+    },
+    makeup: {
+      vibe: '偏妆造、形象整理、拍摄配套',
+      prompt: '适合约妆、试妆、拍摄前协作',
+      nearby: '更适合临时快速匹配妆造需求'
+    },
+    model: {
+      vibe: '偏出镜、拍摄搭档、内容合作',
+      prompt: '适合约拍、试镜、素材共创',
+      nearby: '更适合快速形成轻量拍摄组合'
+    },
+    snack: {
+      vibe: '偏街头小吃、移动摊点、即时供给',
+      prompt: '适合路过即买、顺手打卡、现场补给',
+      nearby: '更适合在附近解决吃喝与逛感'
+    },
+    foodie: {
+      vibe: '偏探店、拼饭、吃喝体验交流',
+      prompt: '适合一起找店、拼桌、分享口碑',
+      nearby: '更适合附近即时约吃和交换情报'
+    },
+    cyclist: {
+      vibe: '偏路线、节奏、装备与结伴骑行',
+      prompt: '适合约短线骑行、拉练、顺路同行',
+      nearby: '更适合快速约到同一片区的骑友'
+    },
+    hiker: {
+      vibe: '偏徒步、爬山、自然路线共行',
+      prompt: '适合约近郊徒步、周末轻登山',
+      nearby: '更适合在出发前临时找到同路人'
+    },
+    visitor: {
+      vibe: '当前仅浏览附近角色分布',
+      prompt: '登录并选角色后，地图会更有针对性',
+      nearby: '现在看到的是游客态的附近视图'
+    }
+  }
+  return map[roleCode] || {
+    vibe: '附近可见的角色用户',
+    prompt: '适合先看看附近有什么人',
+    nearby: '更适合做周边角色分布浏览'
+  }
+}
+
 function distanceKm(lat1, lng1, lat2, lng2) {
   const toRad = (d) => d * Math.PI / 180
   const R = 6371
@@ -537,13 +587,15 @@ function clusterNearbyItems(items = []) {
 function renderPersonSnippet(item = {}, options = {}) {
   const name = item.nickname || `用户${item.id || ''}`
   const visual = roleVisual(item.roleCode)
+  const narrative = roleNarrative(item.roleCode)
   const role = item.roleName || '未设置角色'
   const distance = Number(item.distanceKm || 0).toFixed(2)
-  const bio = item.bio || '这个人还没写简介'
+  const bio = item.bio || narrative.vibe || '这个人还没写简介'
   const showDistance = options.showDistance !== false
   const statusText = options.statusText || ''
   const toneText = options.toneText === false ? '' : (visual.tone || '')
   const badgeText = options.badgeText === false ? '' : (visual.badge || '')
+  const promptText = options.promptText === false ? '' : (narrative.prompt || '')
   return `
     <div class="person-snippet ${visual.cls}">
       <div class="person-name-row">
@@ -553,6 +605,7 @@ function renderPersonSnippet(item = {}, options = {}) {
       ${toneText ? `<div class="person-role-tone">${toneText}</div>` : ''}
       <div class="person-bio">${bio}</div>
       ${badgeText ? `<div class="person-role-badge ${visual.cls}">${badgeText}</div>` : ''}
+      ${promptText ? `<div class="person-role-prompt">${promptText}</div>` : ''}
       <div class="person-meta-row">
         ${showDistance ? `<div class="person-meta">${distance} km 内</div>` : ''}
         ${statusText ? `<div class="person-inline-state ${visual.cls}">${statusText}</div>` : ''}
@@ -602,7 +655,7 @@ function renderMapOverlays() {
         bindActions()
         const info = new window.AMap.InfoWindow({
           offset: new window.AMap.Pixel(0, -28),
-          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">地图与列表已同步高亮 · 点击下方可发起互动</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
+          content: `<div class="popup-card"><div class="popup-head"><div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>${renderPersonSnippet(item, { statusText: '地图定位中' })}</div><div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div><button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button></div>`
         })
         info.open(state.map, [lng, lat])
       })
@@ -658,7 +711,7 @@ function renderMapOverlays() {
           <div class="popup-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" />` : `<div class="avatar-fallback">${name.slice(0,1)}</div>`}</div>
           ${renderPersonSnippet({ ...item, roleName: `${visual.emoji} ${item.roleName || '未设置角色'}` }, { statusText: '地图定位中' })}
         </div>
-        <div class="popup-meta">地图与列表已同步高亮 · 点击下方可发起互动</div>
+        <div class="popup-meta">${roleNarrative(item.roleCode).nearby} · 点击下方可继续互动</div>
         <button class="interact-btn" data-id="${item.id}" data-target="${name}" ${state.canInteract ? '' : 'disabled'}>${state.canInteract ? '发起互动' : '仅可查看'}</button>
       </div>
     `)
@@ -742,8 +795,8 @@ function renderSheet() {
         <div class="stat-card slim"><strong>${state.filterRoleCode ? '已筛选' : '全部'}</strong><span>${state.filterRoleCode ? '角色过滤中' : '当前视野'}</span></div>
         <div class="stat-card slim"><strong>${canInteract ? '可互动' : '浏览模式'}</strong><span>${canInteract ? '已实名，可发起互动' : '登录并实名后可互动'}</span></div>
       </div>
-      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
-      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : '<div class="card-state-chip muted">点击卡片可在地图中定位</div>'}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
+      ${currentFocused ? `<div class="focused-person-card ${roleVisual(currentFocused.roleCode).cls}"><div class="selection-label">当前查看对象</div>${renderPersonSnippet(currentFocused, { statusText: '地图与列表同步中' })}<div class="focused-role-copy">${roleNarrative(currentFocused.roleCode).nearby}</div><div class="nearby-actions focused-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${currentFocused.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${currentFocused.id}" data-target="${currentFocused.nickname || `用户${currentFocused.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>` : ''}
+      <div class="nearby-list nearby-cards">${state.nearby1km.map(item => `<div class="nearby-row nearby-row-clickable nearby-card ${roleVisual(item.roleCode).cls} ${String(state.highlightedUserId) === String(item.id) ? 'nearby-card-active' : ''}" data-fly-id="${item.id}"><div class="nearby-main">${renderPersonSnippet(item, { statusText: String(state.highlightedUserId) === String(item.id) ? '已定位' : '待查看' })}${String(state.highlightedUserId) === String(item.id) ? '<div class="card-state-chip">地图已定位到此人</div>' : `<div class="card-state-chip muted">${roleNarrative(item.roleCode).nearby}</div>`}</div><div class="nearby-actions"><button class="ghost-btn ghost-btn-soft btn-secondary focus-inline" data-fly-id="${item.id}">看位置</button><button class="ghost-btn ${canInteract ? 'ghost-btn-soft btn-secondary interact-inline' : 'ghost-btn-soft btn-disabled-label interact-inline'}" data-id="${item.id}" data-target="${item.nickname || `用户${item.id}`}" ${canInteract ? '' : 'disabled'}>${canInteract ? '发起互动' : '暂不可互动'}</button></div></div>`).join('') || '<div class="empty-state"><div class="empty-title">附近还没人出现</div><div class="small">可以先切换角色、重新定位，或稍后再看。</div></div>'}</div>
     `
   } else if (state.activeTab === 'roles') {
     const selectedRoleId = Number(state.primaryRoleId || state.selectedRoles?.[0] || 0)
