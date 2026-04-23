@@ -750,6 +750,14 @@ function roleActionText(roleCode = '', canInteract = true) {
   return map[roleCode] || '发起互动'
 }
 
+function getLegendRoles() {
+  const visible = (state.nearby1km || []).map(item => String(item.roleCode || '')).filter(Boolean)
+  const unique = Array.from(new Set(visible))
+  if (unique.length) return unique.slice(0, 4)
+  const selected = state.roles.find(r => Number(r.id) === Number(state.primaryRoleId || state.selectedRoles?.[0]))
+  return [selected?.code || 'visitor']
+}
+
 function renderTopBar() {
   const el = document.getElementById('topBar')
   if (!el) return
@@ -757,6 +765,12 @@ function renderTopBar() {
   const activeRole = state.roles.find(r => Number(r.id) === Number(state.primaryRoleId || state.selectedRoles?.[0]))
   const roleLabel = activeRole ? activeRole.name : '未选择角色'
   const nearbyCount = (state.nearby1km || []).length
+  const legendRoles = getLegendRoles()
+  const legendHtml = legendRoles.map(code => {
+    const visual = roleVisual(code)
+    const role = state.roles.find(r => r.code === code) || FALLBACK_ROLES.find(r => r.code === code) || { name: code || '角色' }
+    return `<span class="legend-chip ${visual.cls}"><span class="legend-dot" style="background:${visual.gradient}"></span>${visual.emoji} ${role.name}</span>`
+  }).join('')
   el.innerHTML = `
     <div class="brand-chip hero-chip">
       <div class="brand-row">
@@ -772,6 +786,7 @@ function renderTopBar() {
         <span class="hero-pill ${state.apiReady ? 'hero-pill-live' : 'hero-pill-offline'}">${state.apiReady ? `后端在线 · ${apiBase}` : '离线浏览模式'}</span>
         <span class="hero-pill">地图引擎：${window.AMap && typeof window.AMap.Map === 'function' ? '高德' : 'Leaflet'}</span>
       </div>
+      <div class="role-legend-row"><span class="legend-title">当前可见角色</span>${legendHtml}</div>
     </div>
     <div class="top-right">
       <div class="gps-chip">${state.gpsStatus}</div>
